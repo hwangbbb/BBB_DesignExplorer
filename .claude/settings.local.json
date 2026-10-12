@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:tt-acm.github.io)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where python3)",
+      "Bash(where python)",
+      "Bash(/c/Users/hwang/AppData/Local/Programs/Python/Python314/python.exe --version)"
+    ]
+  }
+}

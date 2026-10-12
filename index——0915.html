@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBB Design Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=2">
+</head>
+
+<body>
+    <!-- ===== HEADER / TOOLBAR ===== -->
+    <header id="app-header">
+        <div class="header-left">
+            <h1 class="editable-title" id="main-title" title="Double-click to edit">BBB Design Explorer</h1>
+            <span class="header-subtitle">Energy Simulation Visualization</span>
+        </div>
+        <div class="header-controls">
+            <div class="control-group">
+                <label for="csv-upload" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="12" y1="18" x2="12" y2="12" />
+                        <polyline points="9 15 12 12 15 15" />
+                    </svg>
+                    Load CSV
+                </label>
+                <input type="file" id="csv-upload" accept=".csv" hidden>
+
+                <label for="img-upload" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    Load Images
+                </label>
+                <input type="file" id="img-upload" accept="image/*" multiple hidden>
+            </div>
+
+            <div class="control-group">
+                <button id="btn-load-sample" class="btn btn-outline" title="Load sample data">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Sample Data
+                </button>
+                <div class="export-dropdown-wrapper">
+                    <button id="btn-export-all" class="btn btn-outline" title="Export all charts as images">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                            <circle cx="12" cy="13" r="4" />
+                        </svg>
+                        Export Charts
+                    </button>
+                    <div id="export-dropdown" class="export-dropdown hidden">
+                        <div class="export-dropdown-header">Export Settings</div>
+                        <label class="control-label export-option">Format:
+                            <select id="export-format">
+                                <option value="png">PNG</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="svg">SVG</option>
+                            </select>
+                        </label>
+                        <label class="control-label export-option">Resolution:
+                            <select id="export-scale">
+                                <option value="2">2x (Standard)</option>
+                                <option value="3">3x (High)</option>
+                                <option value="4" selected>4x (Very High)</option>
+                                <option value="6">6x (Ultra)</option>
+                            </select>
+                        </label>
+                        <label class="control-label export-option">Width (px):
+                            <input type="number" id="export-width" placeholder="Auto" value="" min="400" max="7680"
+                                step="10" class="export-num-input">
+                        </label>
+                        <label class="control-label export-option">Height (px):
+                            <input type="number" id="export-height" placeholder="Auto" value="" min="300" max="4320"
+                                step="10" class="export-num-input">
+                        </label>
+                        <label class="control-label export-option">Background:
+                            <select id="export-bg">
+                                <option value="white" selected>White</option>
+                                <option value="transparent">Transparent</option>
+                            </select>
+                        </label>
+                        <hr class="setting-divider">
+                        <button id="btn-export-parcords" class="btn btn-sm btn-primary export-action-btn">Export
+                            Parallel Coordinates</button>
+                        <button id="btn-export-scatter" class="btn btn-sm btn-primary export-action-btn">Export Scatter
+                            Plot</button>
+                        <button id="btn-export-histogram" class="btn btn-sm btn-primary export-action-btn">Export
+                            Distribution</button>
+                        <hr class="setting-divider">
+                        <button id="btn-export-all-charts"
+                            class="btn btn-sm btn-primary export-action-btn export-all-btn">Export All Charts</button>
+                    </div>
+                </div>
+                <button id="btn-toggle-titles" class="btn btn-icon" title="Toggle all titles">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                </button>
+                <button id="btn-color-panel" class="btn btn-icon" title="Color settings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 2a10 10 0 0110 10H12V2z" fill="currentColor" opacity="0.3" />
+                    </svg>
+                </button>
+                <button id="btn-reset" class="btn btn-icon" title="Reset all filters">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="app-main">
+        <!-- Upload Zone (shown when no data loaded) -->
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-zone-inner">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    opacity="0.4">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <polyline points="9 15 12 12 15 15" />
+                </svg>
+                <h2>Drop your CSV file here</h2>
+                <p>or click to browse files</p>
+                <p class="upload-hint">Supports Colibri format with <code>in:</code> inputs, <code>out:</code> outputs,
+                    and <code>img</code> columns</p>
+            </div>
+        </div>
+
+        <!-- Visualization Container -->
+        <div id="viz-container" class="hidden">
+            <!-- ===== PARALLEL COORDINATES ===== -->
+            <section class="chart-section" id="parcords-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="parcords" title="Double-click to edit">Parallel
+                        Coordinates</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Scheme:
+                            <select id="color-scheme">
+                                <option value="Viridis">Viridis</option>
+                                <option value="Plasma">Plasma</option>
+                                <option value="Inferno">Inferno</option>
+                                <option value="Cividis">Cividis</option>
+                                <option value="YlOrRd">Yellow-Orange-Red</option>
+                                <option value="YlGnBu">Yellow-Green-Blue</option>
+                                <option value="RdBu">Red-Blue Diverging</option>
+                                <option value="Portland">Portland</option>
+                                <option value="Picnic">Picnic</option>
+                                <option value="Jet">Jet (Classic)</option>
+                                <option value="Hot">Hot</option>
+                                <option value="Electric">Electric</option>
+                                <option value="Bluered">Blue-Red</option>
+                                <option value="Blackbody">Blackbody</option>
+                            </select>
+                        </label>
+                        <button id="btn-toggle-parcords-text" class="btn btn-sm btn-outline" title="Hide axis labels">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                                <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                            Labels
+                        </button>
+                        <select id="parcords-font-family" class="control-label" title="Font Family"
+                            style="max-width: 100px;">
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Times New Roman, serif">Times</option>
+                            <option value="Courier New, monospace">Courier</option>
+                        </select>
+                        <label class="control-label" title="Label font size">Aa:
+                            <input type="range" id="parcords-font-size" min="8" max="24" value="12"
+                                class="range-input range-sm">
+                            <span id="parcords-font-size-val" class="range-value">12</span>
+                        </label>
+                        <input type="color" id="parcords-font-color" value="#334155" class="color-input color-input-sm"
+                            title="Label color">
+                        <button id="btn-edit-labels" class="btn btn-sm btn-outline" title="Edit Axis Labels">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            Edit
+                        </button>
+                        <button class="btn btn-sm btn-export-chart" data-chart="parcords-chart"
+                            title="Export chart as image">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                                <circle cx="12" cy="13" r="4" />
+                            </svg>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div id="parcords-chart" class="chart-container chart-tall"></div>
+            </section>
+
+            <!-- ===== SCATTER PLOT + DATA TABLE ROW ===== -->
+            <div class="charts-row">
+                <!-- Scatter Plot -->
+                <section class="chart-section flex-grow" id="scatter-section">
+                    <div class="section-header">
+                        <h2 class="editable-title section-title" data-key="scatter" title="Double-click to edit">Scatter
+                            Plot</h2>
+                        <div class="section-controls">
+                            <label class="control-label">X:
+                                <select id="scatter-x"></select>
+                            </label>
+                            <label class="control-label">Y:
+                                <select id="scatter-y"></select>
+                            </label>
+                            <label class="control-label">Size:
+                                <select id="scatter-size">
+                                    <option value="">None</option>
+                                </select>
+                            </label>
+                            <button class="btn btn-sm btn-export-chart" data-chart="scatter-chart"
+                                title="Export chart as image">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path
+                                        d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                                    <circle cx="12" cy="13" r="4" />
+                                </svg>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="scatter-chart" class="chart-container chart-medium"></div>
+                </section>
+
+                <!-- Histogram -->
+                <section class="chart-section flex-grow" id="histogram-section">
+                    <div class="section-header">
+                        <h2 class="editable-title section-title" data-key="histogram" title="Double-click to edit">
+                            Distribution</h2>
+                        <div class="section-controls">
+                            <label class="control-label">Variable:
+                                <select id="histogram-var"></select>
+                            </label>
+                            <button class="btn btn-sm btn-export-chart" data-chart="histogram-chart"
+                                title="Export chart as image">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path
+                                        d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                                    <circle cx="12" cy="13" r="4" />
+                                </svg>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="histogram-chart" class="chart-container chart-medium"></div>
+                </section>
+            </div>
+
+            <!-- ===== DATA TABLE ===== -->
+
+            <!-- ===== SENSITIVITY: TORNADO ===== -->
+            <section class="chart-section hidden" id="tornado-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="tornado" title="Double-click to edit">Which Variables Actually Move the Result</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Output:
+                            <select id="sens-output"></select>
+                        </label>
+                        <button id="btn-export-tornado" class="btn btn-sm btn-outline">Export PNG</button>
+                    </div>
+                </div>
+                <p class="setting-hint" id="tornado-explain" style="margin:0 0 6px;max-width:960px;line-height:1.55;"></p>
+                <div id="tornado-chart" class="chart-container" style="min-height:300px;position:relative;"></div>
+            </section>
+
+            <!-- ===== SENSITIVITY: DIMINISHING RETURNS ===== -->
+            <section class="chart-section hidden" id="returns-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="returns" title="Double-click to edit">Diminishing Returns Within Each Variable</h2>
+                    <div class="section-controls">
+                        <button id="btn-export-returns" class="btn btn-sm btn-outline">Export PNG</button>
+                    </div>
+                </div>
+                <p class="setting-hint" id="returns-explain" style="margin:0 0 6px;max-width:960px;line-height:1.55;"></p>
+                <div id="returns-chart" class="chart-container" style="min-height:340px;position:relative;"></div>
+            </section>
+
+            <section class="chart-section" id="table-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="table" title="Double-click to edit">Data Table
+                    </h2>
+                    <div class="section-controls">
+                        <span id="data-count" class="data-count"></span>
+                        <button id="btn-export" class="btn btn-sm btn-outline">Export CSV</button>
+                    </div>
+                </div>
+                <div id="data-table" class="table-container"></div>
+            </section>
+
+            <!-- ===== IMAGE GALLERY ===== -->
+            <section class="chart-section" id="gallery-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="gallery" title="Double-click to edit">Design
+                        Variants</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Sort by:
+                            <select id="gallery-sort"></select>
+                        </label>
+                        <label class="control-label">Order:
+                            <select id="gallery-order">
+                                <option value="asc">Ascending</option>
+                                <option value="desc">Descending</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div id="image-gallery" class="gallery-grid"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- ===== COLOR SETTINGS PANEL ===== -->
+    <div id="color-panel" class="side-panel">
+        <div class="side-panel-header">
+            <h3>Color Settings</h3>
+            <button id="btn-close-color-panel" class="btn btn-icon btn-icon-sm">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div class="side-panel-body">
+            <div class="setting-group">
+                <label class="setting-label">Background Color</label>
+                <input type="color" id="bg-color" value="#ffffff" class="color-input">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Header Color</label>
+                <input type="color" id="header-color" value="#1e293b" class="color-input">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Accent Color</label>
+                <input type="color" id="accent-color" value="#2563eb" class="color-input">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Chart Line Color</label>
+                <input type="color" id="chart-line-color" value="#3b82f6" class="color-input">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Chart Line Opacity</label>
+                <input type="range" id="chart-line-opacity" min="0.05" max="1" step="0.05" value="0.5"
+                    class="range-input">
+                <span id="opacity-value" class="range-value">0.5</span>
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Marker Size</label>
+                <input type="range" id="marker-size" min="4" max="20" step="1" value="10" class="range-input">
+                <span id="size-value" class="range-value">10</span>
+            </div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Custom Color Gradient (HSB)</h4>
+            <p class="setting-hint">Define start and end colors to create a custom gradient for charts.</p>
+            <div class="hsb-picker-group">
+                <div class="hsb-column">
+                    <span class="hsb-label">Start Color</span>
+                    <div class="hsb-slider-row">
+                        <label>H</label><input type="range" id="hsb-start-h" min="0" max="360" value="240"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-start-h-val">240</span>
+                    </div>
+                    <div class="hsb-slider-row">
+                        <label>S</label><input type="range" id="hsb-start-s" min="0" max="100" value="80"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-start-s-val">80</span>
+                    </div>
+                    <div class="hsb-slider-row">
+                        <label>B</label><input type="range" id="hsb-start-b" min="0" max="100" value="90"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-start-b-val">90</span>
+                    </div>
+                    <div class="hsb-swatch" id="hsb-start-swatch"></div>
+                </div>
+                <div class="hsb-column">
+                    <span class="hsb-label">End Color</span>
+                    <div class="hsb-slider-row">
+                        <label>H</label><input type="range" id="hsb-end-h" min="0" max="360" value="0"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-end-h-val">0</span>
+                    </div>
+                    <div class="hsb-slider-row">
+                        <label>S</label><input type="range" id="hsb-end-s" min="0" max="100" value="80"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-end-s-val">80</span>
+                    </div>
+                    <div class="hsb-slider-row">
+                        <label>B</label><input type="range" id="hsb-end-b" min="0" max="100" value="95"
+                            class="range-input hsb-range"><span class="hsb-val" id="hsb-end-b-val">95</span>
+                    </div>
+                    <div class="hsb-swatch" id="hsb-end-swatch"></div>
+                </div>
+            </div>
+            <div id="hsb-gradient-preview" class="hsb-gradient-preview"></div>
+            <button id="btn-apply-hsb" class="btn btn-sm btn-primary"
+                style="width:100%;justify-content:center;margin-top:8px;">Apply Custom Gradient</button>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Preset Themes</h4>
+            <div class="theme-presets">
+                <button class="theme-btn" data-theme="light" title="Light theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #f8fafc, #e2e8f0);"></span>
+                    Light
+                </button>
+                <button class="theme-btn" data-theme="dark" title="Dark theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #1e293b, #0f172a);"></span>
+                    Dark
+                </button>
+                <button class="theme-btn" data-theme="ocean" title="Ocean theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #0c4a6e, #164e63);"></span>
+                    Ocean
+                </button>
+                <button class="theme-btn" data-theme="forest" title="Forest theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #14532d, #1e3a2f);"></span>
+                    Forest
+                </button>
+                <button class="theme-btn" data-theme="sunset" title="Sunset theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #7c2d12, #78350f);"></span>
+                    Sunset
+                </button>
+                <button class="theme-btn" data-theme="architect" title="Architect theme">
+                    <span class="theme-preview" style="background: linear-gradient(135deg, #fafaf9, #d6d3d1);"></span>
+                    Architect
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== OVERLAY for side panel ===== -->
+    <div id="panel-overlay" class="panel-overlay hidden"></div>
+
+    <!-- ===== LABEL SETTINGS PANEL ===== -->
+    <div id="label-panel" class="side-panel">
+        <div class="side-panel-header">
+            <h3>Edit Axis Labels</h3>
+            <button id="btn-close-label-panel" class="btn btn-icon btn-icon-sm">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div class="side-panel-body" id="label-inputs-container">
+            <p class="setting-hint" style="margin-top:0;">Rename the column headers and category labels for the Parallel
+                Coordinates chart.</p>
+            <!-- Inputs dynamically generated here -->
+        </div>
+    </div>
+
+    <!-- ===== IMAGE LIGHTBOX ===== -->
+    <div id="lightbox" class="lightbox hidden">
+        <div class="lightbox-backdrop"></div>
+        <div class="lightbox-content">
+            <button id="lightbox-close" class="btn btn-icon lightbox-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+            <img id="lightbox-img" src="" alt="Design variant">
+            <div id="lightbox-info" class="lightbox-info"></div>
+        </div>
+    </div>
+
+    <!-- ===== SCRIPTS ===== -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="js/app.js?v=11"></script>
+    <script src="js/sensitivity.js?v=1"></script>
+</body>
+
+</html>
