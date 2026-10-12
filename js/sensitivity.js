@@ -221,8 +221,9 @@
       const delta = {}; Object.keys(e.delta).forEach(L => delta[map(L)] = e.delta[L]);
       return { ...e, name: S.labels[e.key] || e.name, rawOrdered: e.ordered, ordered: e.ordered.map(map), delta, ref: map(e.ref), best: map(e.best) };
     });
-    drawTornado(eff, unit); drawReturns(eff, unit);
+    // unhide first: Plotly sizes 'responsive' charts from the container, which is 0 wide while hidden
     document.querySelectorAll('#tornado-section,#returns-section').forEach(x => x.classList.remove('hidden'));
+    drawTornado(eff, unit); drawReturns(eff, unit);
   }
 
 
