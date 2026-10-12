@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BBB Design Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=2">
+    <link rel="stylesheet" href="css/styles.css?v=3">
 </head>
 
 <body>
@@ -168,6 +168,15 @@
                                 <option value="Blackbody">Blackbody</option>
                             </select>
                         </label>
+                        <label class="control-label" title="Highlight the best or worst runs on every chart">Highlight:
+                            <select id="hl-mode">
+                                <option value="low">Lowest</option>
+                                <option value="high">Highest</option>
+                            </select>
+                            <input type="number" id="hl-n" value="1" min="1" max="50" step="1" class="export-num-input" style="width:52px" title="How many runs">
+                        </label>
+                        <button id="btn-hl-apply" class="btn btn-sm btn-outline" title="Highlight on parallel coordinates and scatter">Highlight</button>
+                        <button id="btn-hl-clear" class="btn btn-sm btn-outline" title="Clear highlight">Clear</button>
                         <button id="btn-toggle-parcords-text" class="btn btn-sm btn-outline" title="Hide axis labels">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -211,6 +220,7 @@
                     </div>
                 </div>
                 <div id="parcords-chart" class="chart-container chart-tall"></div>
+                <div id="hl-readout" class="setting-hint hidden" style="margin:6px 0 0;line-height:1.6;"></div>
             </section>
 
             <!-- ===== SCATTER PLOT + DATA TABLE ROW ===== -->
@@ -273,6 +283,34 @@
             </div>
 
             <!-- ===== DATA TABLE ===== -->
+
+            <!-- ===== SENSITIVITY: TORNADO ===== -->
+            <section class="chart-section hidden" id="tornado-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="tornado" title="Double-click to edit">Which Variables Actually Move the Result</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Output:
+                            <select id="sens-output"></select>
+                        </label>
+                        <button id="btn-export-tornado" class="btn btn-sm btn-outline">Export PNG</button>
+                    </div>
+                </div>
+                <p class="setting-hint" id="tornado-explain" style="margin:0 0 6px;max-width:960px;line-height:1.55;"></p>
+                <div id="tornado-chart" class="chart-container" style="min-height:300px;position:relative;"></div>
+            </section>
+
+            <!-- ===== SENSITIVITY: DIMINISHING RETURNS ===== -->
+            <section class="chart-section hidden" id="returns-section">
+                <div class="section-header">
+                    <h2 class="editable-title section-title" data-key="returns" title="Double-click to edit">Diminishing Returns Within Each Variable</h2>
+                    <div class="section-controls">
+                        <button id="btn-export-returns" class="btn btn-sm btn-outline">Export PNG</button>
+                    </div>
+                </div>
+                <p class="setting-hint" id="returns-explain" style="margin:0 0 6px;max-width:960px;line-height:1.55;"></p>
+                <div id="returns-chart" class="chart-container" style="min-height:340px;position:relative;"></div>
+            </section>
+
             <section class="chart-section" id="table-section">
                 <div class="section-header">
                     <h2 class="editable-title section-title" data-key="table" title="Double-click to edit">Data Table
@@ -456,7 +494,8 @@
     <!-- ===== SCRIPTS ===== -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="js/app.js?v=11"></script>
+    <script src="js/app.js?v=13"></script>
+    <script src="js/sensitivity.js?v=3"></script>
 </body>
 
 </html>

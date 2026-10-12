@@ -56,15 +56,17 @@
   }
 
   // ---------- palette (follows the page's accent when available) ----------
-  function accent() { return (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#2563eb').trim(); }
+  // Theme tokens are read from <body> so the built-in themes (dark, ocean, ...) flow into the charts.
+  function tok(name, fb) { const v = getComputedStyle(document.body).getPropertyValue(name).trim(); return v || fb; }
+  function accent() { return tok('--accent', '#2457c5'); }
   function colorFor(span, maxSpan) {
     const t = maxSpan ? span / maxSpan : 0;
     if (t > 0.6) return accent();
-    if (t > 0.2) return '#7fa3d1';
-    return '#c3c8d1';
+    if (t > 0.2) return tok('--chart-mid', '#7f9bd6');
+    return tok('--chart-low', '#c9c9c9');
   }
   const baseLayout = () => ({
-    font: { family: 'Inter, system-ui, sans-serif', size: 12, color: '#334155' },
+    font: { family: 'Inter, "Helvetica Neue", Helvetica, Arial, sans-serif', size: 12, color: tok('--text-primary', '#0e0e0e') },
     paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
     margin: { l: 10, r: 10, t: 30, b: 40 }, hoverlabel: { font: { family: 'Inter' } }
   });
@@ -77,15 +79,15 @@
     const y = eff.map(e => e.name).reverse();
     const x = eff.map(e => e.span).reverse();
     const colors = eff.map(e => colorFor(e.span, maxSpan)).reverse();
-    const labels = eff.map(e => `${e.span.toFixed(2)}   ${e.ref} → ${e.best}`).reverse();
+    const labels = eff.map(e => `${fmtN(e.span)}   ${e.ref} → ${e.best}`).reverse();
     Plotly.react(el, [{
       type: 'bar', orientation: 'h', y, x, marker: { color: colors },
-      text: labels, textposition: 'outside', textfont: { size: 11.5, color: '#334155' }, cliponaxis: false,
+      text: labels, textposition: 'outside', textfont: { size: 11.5, color: tok('--text-primary', '#0e0e0e') }, cliponaxis: false,
       hovertemplate: '%{y}<br>Isolated effect: %{x:.2f} ' + unit + '<extra></extra>'
     }], Object.assign(baseLayout(), {
       height: Math.max(220, 70 + 44 * eff.length), margin: { l: 160, r: 170, t: 20, b: 48 },
-      xaxis: { title: { text: `${unit} reduction, worst level → best level`, font: { size: 11.5, color: '#64748b' } }, gridcolor: '#e6e9ef', zeroline: false, range: [0, maxSpan * 1.35] },
-      yaxis: { automargin: true, tickfont: { size: 12.5 } },
+      xaxis: { title: { text: `${unit} reduction, worst level → best level`, font: { size: 11.5, color: tok('--text-muted', '#8a8a8a') } }, gridcolor: tok('--border', '#e4e4e4'), zeroline: false, range: [0, maxSpan * 1.35], tickfont: { color: tok('--text-secondary', '#4b4b4b') } },
+      yaxis: { automargin: true, tickfont: { size: 12.5, color: tok('--text-primary', '#0e0e0e') } },
       bargap: 0.38
     }), cfg);
     const expl = document.getElementById('tornado-explain');
@@ -99,29 +101,72 @@
   }
 
   // ---------- 2. diminishing returns, small multiples ----------
+  // Numeric inputs (e.g. 1, 1.5, 2.5 or 20%) are drawn to scale and judged on gain PER UNIT of
+  // input, so uneven level spacing cannot fake or hide a knee. Text inputs stay categorical and
+  // are judged on gain per step.
+  const numOf = v => { const m = String(v).trim().match(/^(-?\d*\.?\d+)\s*%?$/); return m ? parseFloat(m[1]) : null; };
+  const fmtN = v => { const a = Math.abs(v); return v.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2); };
+
+  function stepStats(e) {
+    const raw = e.rawOrdered || e.ordered;
+    const ys = e.ordered.map(L => e.delta[L]);
+    const xv = raw.map(numOf);
+    let numeric = xv.length > 1 && xv.every(v => v !== null) && new Set(xv).size === xv.length;
+    if (numeric) {                                   // to-scale only if worst → best is monotonic in x
+      const up = xv.every((v, k) => k === 0 || v > xv[k - 1]);
+      const dn = xv.every((v, k) => k === 0 || v < xv[k - 1]);
+      numeric = up || dn; e._reversed = dn;
+    }
+    const steps = [];                                // gain is positive when the step improves the result
+    for (let k = 1; k < ys.length; k++) {
+      const gain = -(ys[k] - ys[k - 1]);
+      steps.push({ k, gain, perUnit: numeric ? gain / Math.abs(xv[k] - xv[k - 1]) : gain });
+    }
+    let knee = null;                                 // first level after which gain per unit halves
+    for (let j = 1; j < steps.length; j++) {
+      if (steps[j - 1].perUnit > 0 && steps[j].perUnit < 0.5 * steps[j - 1].perUnit) { knee = e.ordered[j]; break; }
+    }
+    const pos = steps.map(s => s.perUnit).filter(v => v > 0);
+    const linear = !knee && steps.length > 1 && pos.length === steps.length && Math.max(...pos) / Math.min(...pos) <= 1.5;
+    return { xv, ys, numeric, steps, knee, linear };
+  }
+
   function drawReturns(eff, unit) {
     const el = document.getElementById('returns-chart'); if (!el) return;
     const n = eff.length, maxSpan = eff[0]?.span || 1;
+    const ink = tok('--text-primary', '#0e0e0e'), ink2 = tok('--text-secondary', '#4b4b4b'),
+      muted = tok('--text-muted', '#8a8a8a'), line = tok('--border', '#e4e4e4'), bg = tok('--bg-secondary', '#ffffff');
     const traces = [], ann = [], shapes = [];
     const minY = Math.min(...eff.map(e => -e.span)) * 1.25 - 0.15;
     eff.forEach((e, i) => {
       const ax = i === 0 ? '' : String(i + 1);
-      const xs = e.ordered, ys = e.ordered.map(L => e.delta[L]);
+      const st = e._st = stepStats(e);
+      const xs = st.numeric ? st.xv : e.ordered, ys = st.ys;
       const col = colorFor(e.span, maxSpan);
       traces.push({
         type: 'scatter', mode: 'lines+markers', x: xs, y: ys, xaxis: 'x' + ax, yaxis: 'y' + ax,
-        line: { color: col, width: 2.5, shape: 'spline', smoothing: 0.6 }, marker: { size: 9, color: col, line: { color: '#fff', width: 1.5 } },
-        hovertemplate: `${e.name}: %{x}<br>Δ ${unit} vs worst: %{y:.2f}<extra></extra>`, showlegend: false
+        text: e.ordered,
+        line: { color: col, width: 2, shape: st.numeric ? 'linear' : 'spline', smoothing: 0.6 }, marker: { size: 9, color: col, line: { color: bg, width: 2 } },
+        hovertemplate: `${e.name}: %{text}<br>Δ ${unit} vs worst: %{y:.2f}<extra></extra>`, showlegend: false
       });
-      // marginal step labels between points
-      for (let k = 1; k < xs.length; k++) {
-        const step = ys[k] - ys[k - 1];
-        ann.push({ xref: 'x' + ax, yref: 'y' + ax, x: k - 0.5, y: (ys[k] + ys[k - 1]) / 2, text: (step >= 0 ? '+' : '') + step.toFixed(2), showarrow: false, font: { size: 10.5, color: Math.abs(step) < 0.05 ? '#94a3b8' : '#334155' }, bgcolor: 'rgba(255,255,255,0.85)', borderpad: 2 });
+      // marginal step labels between points: step change, plus gain per unit for numeric inputs
+      st.steps.forEach(s => {
+        const k = s.k, step = ys[k] - ys[k - 1];
+        const x = st.numeric ? (xs[k] + xs[k - 1]) / 2 : k - 0.5;
+        const small = Math.abs(step) < 0.02 * maxSpan;
+        ann.push({ xref: 'x' + ax, yref: 'y' + ax, x, y: (ys[k] + ys[k - 1]) / 2,
+          text: (step >= 0 ? '+' : '') + fmtN(step), showarrow: false,
+          font: { size: 10.5, color: small ? muted : ink }, bgcolor: bg, opacity: 0.92, borderpad: 2 });
+      });
+      if (st.knee !== null) {
+        const kx = st.numeric ? st.xv[e.ordered.indexOf(st.knee)] : e.ordered.indexOf(st.knee);
+        shapes.push({ type: 'line', xref: 'x' + ax, yref: 'y' + ax + ' domain', x0: kx, x1: kx, y0: 0, y1: 1, line: { color: ink, width: 1, dash: 'dot' } });
+        ann.push({ xref: 'x' + ax, yref: 'y' + ax + ' domain', x: kx, y: 0.02, xanchor: 'left', yanchor: 'bottom', text: ' knee', showarrow: false, font: { size: 10.5, color: ink } });
       }
       // subplot title
-      ann.push({ xref: 'x' + ax + ' domain', yref: 'y' + ax + ' domain', x: 0, y: 1.14, xanchor: 'left', text: `<b>${e.name}</b>  <span style="color:#64748b">span ${e.span.toFixed(2)}</span>`, showarrow: false, font: { size: 12 } });
+      ann.push({ xref: 'x' + ax + ' domain', yref: 'y' + ax + ' domain', x: 0, y: 1.14, xanchor: 'left', text: `${e.name}  <span style="color:${muted}">span ${fmtN(e.span)}</span>`, showarrow: false, font: { size: 12.5, color: ink } });
       // zero line
-      shapes.push({ type: 'line', xref: 'x' + ax + ' domain', yref: 'y' + ax, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: '#cbd5e1', width: 1, dash: 'dot' } });
+      shapes.push({ type: 'line', xref: 'x' + ax + ' domain', yref: 'y' + ax, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: line, width: 1, dash: 'dot' } });
     });
     const layout = Object.assign(baseLayout(), {
       grid: { rows: 1, columns: n, pattern: 'independent', xgap: 0.08 },
@@ -129,19 +174,31 @@
       height: 320
     });
     eff.forEach((e, i) => {
-      const ax = i === 0 ? '' : String(i + 1);
-      layout['xaxis' + ax] = { type: 'category', categoryorder: 'array', categoryarray: e.ordered, tickfont: { size: 11 }, showgrid: false, zeroline: false, fixedrange: true };
-      layout['yaxis' + ax] = { range: [minY, Math.max(0.35, -minY * 0.08)], gridcolor: '#eef1f5', zeroline: false, fixedrange: true,
-        showticklabels: i === 0, tickfont: { size: 10.5 }, title: i === 0 ? { text: `Δ ${unit} vs worst level`, font: { size: 11, color: '#64748b' } } : undefined };
+      const ax = i === 0 ? '' : String(i + 1), st = e._st;
+      if (st.numeric) {
+        const lo = Math.min(...st.xv), hi = Math.max(...st.xv), pad = (hi - lo) * 0.08;
+        layout['xaxis' + ax] = { type: 'linear', tickvals: st.xv, ticktext: e.ordered,
+          range: st.numeric && e._reversed ? [hi + pad, lo - pad] : [lo - pad, hi + pad],
+          tickfont: { size: 11, color: ink2 }, showgrid: false, zeroline: false, fixedrange: true };
+      } else {
+        layout['xaxis' + ax] = { type: 'category', categoryorder: 'array', categoryarray: e.ordered, tickfont: { size: 11, color: ink2 }, showgrid: false, zeroline: false, fixedrange: true };
+      }
+      layout['yaxis' + ax] = { range: [minY, Math.max(0.35, -minY * 0.08)], gridcolor: line, zeroline: false, fixedrange: true,
+        showticklabels: i === 0, tickfont: { size: 10.5, color: ink2 }, title: i === 0 ? { text: `Δ ${unit} vs worst level`, font: { size: 11, color: muted } } : undefined };
     });
     Plotly.react(el, traces, layout, cfg);
     const expl = document.getElementById('returns-explain');
     if (expl) {
-      const dim = eff.filter(e => e.ordered.length > 2).map(e => {
-        const s1 = e.delta[e.ordered[1]] - e.delta[e.ordered[0]], s2 = e.delta[e.ordered[2]] - e.delta[e.ordered[1]];
-        return Math.abs(s2) < Math.abs(s1) * 0.7 ? `${e.name} flattens after ${e.ordered[1]} (step 1 ${s1.toFixed(2)}, step 2 ${s2.toFixed(2)})` : null;
+      const notes = eff.filter(e => e.ordered.length > 2).map(e => {
+        const st = e._st, per = st.numeric ? 'per unit' : 'per step';
+        const g = st.steps.map(s => fmtN(s.perUnit)).join(', ');
+        if (st.knee !== null) return `${e.name}: knee at ${st.knee} (gain ${per}: ${g})`;
+        if (st.linear) return `${e.name}: close to linear, no knee (gain ${per}: ${g})`;
+        return null;
       }).filter(Boolean);
-      expl.innerHTML = `Levels run left → right from worst to best; the number on each segment is the marginal gain of that single step. A curve that flattens is a variable where the next increment no longer pays. ` + (dim.length ? dim.join('; ') + '.' : '');
+      expl.innerHTML = `Levels run left → right from worst to best; the number on each segment is the change from that single step. `
+        + `Numeric inputs are drawn to scale and judged on gain per unit of input, so uneven level spacing does not fake a knee. `
+        + `A knee is where gain per unit falls below half of the previous step. ` + (notes.length ? notes.join('; ') + '.' : '');
     }
   }
 
@@ -162,10 +219,11 @@
       const tl = S.ticks[e.key] || {};
       const map = L => tl[L] || L;
       const delta = {}; Object.keys(e.delta).forEach(L => delta[map(L)] = e.delta[L]);
-      return { ...e, name: S.labels[e.key] || e.name, ordered: e.ordered.map(map), delta, ref: map(e.ref), best: map(e.best) };
+      return { ...e, name: S.labels[e.key] || e.name, rawOrdered: e.ordered, ordered: e.ordered.map(map), delta, ref: map(e.ref), best: map(e.best) };
     });
-    drawTornado(eff, unit); drawReturns(eff, unit);
+    // unhide first: Plotly sizes 'responsive' charts from the container, which is 0 wide while hidden
     document.querySelectorAll('#tornado-section,#returns-section').forEach(x => x.classList.remove('hidden'));
+    drawTornado(eff, unit); drawReturns(eff, unit);
   }
 
 
