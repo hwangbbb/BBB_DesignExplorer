@@ -76,7 +76,8 @@
                 const lower = col.toLowerCase().trim();
                 if (lower.startsWith('in:')) this.columns.inputs.push(col);
                 else if (lower.startsWith('out:')) this.columns.outputs.push(col);
-                else if (lower === 'img' || lower === 'image') this.columns.images.push(col);
+                // Colibri writes the image column as "img:<name>" (e.g. img:Output); older files use "img"
+                else if (/^(img|image)(:|$)/.test(lower)) this.columns.images.push(col);
             });
         }
 
@@ -136,15 +137,22 @@
             return [Math.min(...vals), Math.max(...vals)];
         }
 
-        addImage(filename, dataUrl) {
-            this.images[filename] = dataUrl;
+        // Image names are matched loosely: folder path, letter case and the extension are ignored,
+        // so "Run 1.png" in the CSV finds "run 1.PNG" or "...\\images\\Run 1.png".
+        _imgKey(name) {
+            return String(name || '').trim().split(/[\\/]/).pop().toLowerCase().replace(/\.(png|jpe?g|gif|webp|bmp)$/, '');
+        }
+
+        addImage(filename, url) {
+            const key = this._imgKey(filename);
+            if (this.images[key] && this.images[key].startsWith('blob:')) URL.revokeObjectURL(this.images[key]);
+            this.images[key] = url;
         }
 
         getImageUrl(row) {
             if (this.columns.images.length === 0) return null;
             const imgCol = this.columns.images[0];
-            const filename = row[imgCol];
-            return this.images[filename] || null;
+            return this.images[this._imgKey(row[imgCol])] || null;
         }
 
         get rowCount() { return this.rawData.length; }
@@ -909,7 +917,8 @@
             });
 
             imgInput.addEventListener('change', (e) => {
-                this._loadImageFiles(e.target.files);
+                this._loadImageFiles([...e.target.files]);
+                e.target.value = '';   // allow picking the same files again
             });
         }
 
@@ -969,19 +978,15 @@
         }
 
         _loadImageFiles(files) {
-            let loaded = 0;
-            const total = files.length;
-
-            for (let file of files) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.dm.addImage(file.name, e.target.result);
-                    loaded++;
-                    if (loaded === total) {
-                        this._renderGallery();
-                    }
-                };
-                reader.readAsDataURL(file);
+            // Object URLs are instant and light, unlike base64 data URLs for hundreds of PNGs.
+            const imgs = [...files].filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name));
+            if (!imgs.length) return;
+            imgs.forEach(f => this.dm.addImage(f.name, URL.createObjectURL(f)));
+            this._renderGallery();
+            if (this.dm.columns.images.length && this.dm.rowCount) {
+                const matched = this.dm.rawData.filter(r => this.dm.getImageUrl(r)).length;
+                if (matched === 0) console.warn('Design Explorer: none of the ' + imgs.length + ' images match the "' +
+                    this.dm.columns.images[0] + '" column. Check that the file names match the CSV.');
             }
         }
 
