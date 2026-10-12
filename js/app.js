@@ -319,7 +319,7 @@
             document.body.classList.contains('theme-forest') ||
             document.body.classList.contains('theme-sunset');
         const plotBg = 'rgba(0,0,0,0)';
-        const fontColor = isDark ? '#e2e8f0' : '#334155';
+        const fontColor = isDark ? '#f2f2f2' : '#0e0e0e';
 
         const layout = {
             margin: { t: 80, b: 30, l: 60, r: 60 },
@@ -407,7 +407,7 @@
             document.body.classList.contains('theme-ocean') ||
             document.body.classList.contains('theme-forest') ||
             document.body.classList.contains('theme-sunset');
-        const fontColor = isDark ? '#e2e8f0' : '#334155';
+        const fontColor = isDark ? '#f2f2f2' : '#0e0e0e';
         const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
 
         // Build axis config with categorical tick labels when needed
@@ -467,7 +467,7 @@
             document.body.classList.contains('theme-ocean') ||
             document.body.classList.contains('theme-forest') ||
             document.body.classList.contains('theme-sunset');
-        const fontColor = isDark ? '#e2e8f0' : '#334155';
+        const fontColor = isDark ? '#f2f2f2' : '#0e0e0e';
         const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
 
         let trace, layout;
