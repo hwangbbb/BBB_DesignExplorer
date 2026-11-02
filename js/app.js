@@ -1345,6 +1345,7 @@
         _setupLabelSettings() {
             const panel = document.getElementById('label-panel');
             const overlay = document.getElementById('panel-overlay');
+            if (!panel || !document.getElementById('btn-edit-labels')) return;  // label editor belonged to the old parallel coordinates
 
             document.getElementById('btn-edit-labels').addEventListener('click', () => {
                 this.labelPanelOpen = !this.labelPanelOpen;
@@ -1478,6 +1479,8 @@
         }
 
         _renderParallelCoords() {
+            // The Plotly parallel coordinates were replaced by the Parametric Explorer (js/parametric.js).
+            if (!document.getElementById('parcords-chart')) return;
             renderParallelCoords(this.dm, 'parcords-chart', {
                 colorDimension: this.settings.colorDimension,
                 colorScale: this.settings.colorScale,

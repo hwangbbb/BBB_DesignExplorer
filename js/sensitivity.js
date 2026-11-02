@@ -288,7 +288,7 @@
       return `<div><b>${name(out)} ${parseFloat(r[out]).toFixed(2)}</b> &nbsp;—&nbsp; ${ins}</div>`;
     });
     const more = HL.active.idx.length > 12 ? `<div style="color:var(--text-muted)">… ${HL.active.idx.length - 12} more</div>` : '';
-    el.innerHTML = `<div style="color:var(--text-muted);margin-bottom:2px">${HL.active.mode === 'low' ? 'Lowest' : 'Highest'} ${HL.active.idx.length} of ${dm.rowCount} runs (all other lines hidden on the parallel coordinates):</div>` + lines.join('') + more;
+    el.innerHTML = `<div style="color:var(--text-muted);margin-bottom:2px">${HL.active.mode === 'low' ? 'Lowest' : 'Highest'} ${HL.active.idx.length} of ${dm.rowCount} runs, ringed on the scatter plot:</div>` + lines.join('') + more;
     el.classList.remove('hidden');
   }
 
