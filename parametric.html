@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parametric Explorer · BBB Design Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/parametric.css?v=1">
+</head>
+
+<body>
+    <header id="app-header">
+        <div class="header-left">
+            <h1 id="main-title">BBB Design Explorer</h1>
+            <span class="header-subtitle">Parametric Explorer</span>
+            <span id="pe-demo-badge" class="pe-demo-badge hidden" title="Synthetic numbers for demonstration only">Demo data</span>
+            <span id="pe-file-name" class="pe-file-name"></span>
+        </div>
+        <div class="header-controls">
+            <div class="control-group">
+                <label for="pe-csv" class="btn btn-primary" title="Load a Colibri data.csv (or drop it anywhere on the page)">Load CSV</label>
+                <input type="file" id="pe-csv" accept=".csv,text/csv" hidden>
+                <label for="pe-imgs" class="btn btn-secondary" title="Pick the run screenshots so the img column can be shown">Load Images</label>
+                <input type="file" id="pe-imgs" accept="image/*" multiple hidden>
+                <button id="pe-demo" class="btn btn-outline" title="Load synthetic demo data (labelled Demo data)">Demo data</button>
+                <a href="index.html" class="btn btn-outline" title="Back to the overview page">Overview</a>
+                <button id="pe-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="app-main">
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-zone-inner" id="pe-drop">
+                <h2>Drop a Colibri data.csv here</h2>
+                <p>or click to browse files</p>
+                <p class="upload-hint">Columns starting with <code>in:</code> are inputs, <code>out:</code> are outputs,
+                    and an optional <code>img</code> column holds a screenshot per run.</p>
+                <p class="upload-hint">No file at hand? Use <b>Demo data</b> in the top bar (synthetic numbers, clearly labelled).</p>
+            </div>
+        </div>
+
+        <div id="viz-container" class="hidden">
+            <div class="pe-layout">
+                <!-- VIEW 1 -->
+                <section class="chart-section" id="pe-pc-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Parallel Coordinates</h2>
+                        <div class="section-controls">
+                            <span id="pe-filter-count" class="data-count num"></span>
+                            <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
+                        </div>
+                    </div>
+                    <div class="pe-chart-scroll" id="pe-scroll">
+                        <div class="pe-canvas-wrap" id="pe-wrap">
+                            <canvas id="pe-base"></canvas>
+                            <canvas id="pe-top" class="pe-top"></canvas>
+                        </div>
+                    </div>
+                    <div class="pe-status">
+                        <span class="pe-legend">
+                            <span><i style="background:var(--pe-sel);height:4px"></i>Selected run</span>
+                            <span><i style="background:var(--pe-near)"></i>Differs in one input</span>
+                            <span><i style="background:var(--pe-run);opacity:.6"></i>Runs in filter</span>
+                            <span><i style="background:var(--pe-grey)"></i>Filtered out</span>
+                        </span>
+                        <span id="pe-match" class="num"></span>
+                    </div>
+                    <div class="pe-status" style="border-top:0;padding-top:0;color:var(--text-muted);font-size:12px">
+                        Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.
+                    </div>
+                    <div class="pe-sliders" id="pe-sliders"></div>
+                </section>
+
+                <!-- SELECTED RUN -->
+                <section class="chart-section" id="pe-run-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Selected Run</h2>
+                        <div class="section-controls">
+                            <label class="control-label">Primary:
+                                <select id="pe-primary"></select>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="pe-panel-body" id="pe-run"></div>
+                </section>
+            </div>
+
+            <!-- VIEW 2 -->
+            <section class="chart-section" id="pe-sens-section">
+                <div class="section-header">
+                    <h2 class="section-title">Sensitivity Analysis</h2>
+                    <div class="section-controls">
+                        <div class="pe-seg" id="pe-mode">
+                            <button data-mode="global" class="active">Global</button>
+                            <button data-mode="local">Local</button>
+                        </div>
+                        <label class="control-label">Output:
+                            <select id="pe-sens-out"></select>
+                        </label>
+                    </div>
+                </div>
+                <div class="pe-sens-body">
+                    <p class="setting-hint" id="pe-sens-explain" style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);max-width:980px"></p>
+                    <div id="pe-sens-chart"></div>
+                    <p class="pe-foot" id="pe-sens-foot"></p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="pe-tooltip" class="hidden"></div>
+    <div id="pe-toast" class="pe-toast"></div>
+
+    <script src="js/parametric.js?v=1"></script>
+</body>
+
+</html>
