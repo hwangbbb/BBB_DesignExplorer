@@ -11,9 +11,10 @@
     //  CORE (pure functions, no DOM; exported for tests)
     // ================================================================
 
-    /* RFC-4180-ish CSV parser: quotes, escaped quotes, CRLF, BOM. */
-    function parseCSV(text) {
+    /* RFC-4180-ish CSV parser: quotes, escaped quotes, CRLF, BOM, any one-character delimiter. */
+    function parseCSV(text, delim) {
         if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        delim = delim || ',';
         const rows = [];
         let row = [], field = '', i = 0, q = false;
         const n = text.length;
@@ -27,7 +28,7 @@
                 field += c; i++; continue;
             }
             if (c === '"') { q = true; i++; continue; }
-            if (c === ',') { row.push(field); field = ''; i++; continue; }
+            if (c === delim) { row.push(field); field = ''; i++; continue; }
             if (c === '\r') { i++; continue; }
             if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
             field += c; i++;
@@ -44,6 +45,48 @@
         return parseFloat(t.replace('%', ''));
     }
 
+    // ---------------------------------------------------------------
+    //  Normalisation: every view on the page reads the file through this, so one cleaning rule
+    //  applies everywhere and any Colibri export works, not only the sample files.
+    // ---------------------------------------------------------------
+    // EnergyPlus / Honeybee / Colibri write these when a simulation fails.
+    const SENTINELS = new Set([-999, -9999, -99999, -999999]);
+    function isSentinel(n) { return SENTINELS.has(n); }
+    function detectDelimiter(text) {
+        const first = (text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text).split(/\r?\n/, 1)[0] || '';
+        const count = ch => first.split(ch).length - 1;
+        const c = { ',': count(','), ';': count(';'), '\t': count('\t') };
+        return Object.keys(c).reduce((a, b) => c[b] > c[a] ? b : a, ',');
+    }
+    function csvCell(v) { v = v == null ? '' : String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+    /* Returns clean comma-separated text plus what was cleaned.
+       - ; or tab delimited files (European Excel) are read, and decimal commas become points
+       - in out: columns, failure codes (-999, -9999, ...) and error text (NaN, #DIV/0!, error, ...)
+         become blank = missing. Columns that are text throughout are left alone. */
+    function normalizeCSV(text) {
+        const delimiter = detectDelimiter(text);
+        const rows = parseCSV(text, delimiter);
+        if (!rows.length) return { text: '', rows, failedRows: new Set(), failedCells: 0, delimiter };
+        rows[0] = rows[0].map(h => String(h).trim());
+        if (delimiter !== ',') {
+            for (let i = 1; i < rows.length; i++) rows[i] = rows[i].map(v => /^\s*[-+]?\d+,\d+\s*%?\s*$/.test(v) ? v.replace(',', '.') : v);
+        }
+        const failedRows = new Set(); let failedCells = 0;
+        rows[0].forEach((h, j) => {
+            if (!/^out\s*:/i.test(h)) return;
+            let numeric = 0, filled = 0;
+            for (let i = 1; i < rows.length; i++) { const v = String(rows[i][j] == null ? '' : rows[i][j]).trim(); if (v !== '') { filled++; if (!isNaN(toNumber(v))) numeric++; } }
+            if (!numeric || numeric < filled * 0.5) return;            // a text output: leave it alone
+            for (let i = 1; i < rows.length; i++) {
+                const v = String(rows[i][j] == null ? '' : rows[i][j]).trim();
+                if (v === '') continue;
+                const n = toNumber(v);
+                if (isNaN(n) || !isFinite(n) || isSentinel(n)) { rows[i][j] = ''; failedRows.add(i - 1); failedCells++; }
+            }
+        });
+        return { text: rows.map(r => r.map(csvCell).join(',')).join('\n'), rows, failedRows, failedCells, delimiter };
+    }
+
     /* "out:EUI (kBtu/sf·yr)" -> { label: "EUI (kBtu/sf·yr)", name: "EUI", unit: "kBtu/sf·yr" } */
     function parseHeader(h) {
         const label = h.replace(/^\s*(in|out)\s*:\s*/i, '').trim();
@@ -53,7 +96,8 @@
 
     /* Build the dataset model from CSV text. */
     function buildDataset(text) {
-        const rows = parseCSV(text);
+        const norm = normalizeCSV(text);
+        const rows = norm.rows;
         if (rows.length < 2) throw new Error('The CSV has no data rows.');
         const header = rows[0].map(h => String(h).trim());
         const inCols = [], outCols = [];
@@ -68,8 +112,10 @@
         if (!outCols.length) throw new Error('No "out:" columns found. Is this a Colibri data.csv?');
 
         const body = rows.slice(1);
+        const failedBody = new Set([...norm.failedRows].map(i => body[i]));
         // Rows missing any input value cannot be placed on the grid.
         const kept = body.filter(r => inCols.every(j => r[j] != null && String(r[j]).trim() !== ''));
+        const failed = new Set(); kept.forEach((r, i) => { if (failedBody.has(r)) failed.add(i); });
         const droppedRows = body.length - kept.length;
         const N = kept.length;
         if (!N) throw new Error('No rows with complete input values.');
@@ -79,6 +125,7 @@
             const raw = kept.map(r => String(r[j]).trim());
             const numeric = raw.every(v => !isNaN(toNumber(v)));
             let levels; // [{ key, value, text }]
+            let numberLike = false;
             if (numeric) {
                 const seen = new Map();
                 raw.forEach(v => { const x = toNumber(v); if (!seen.has(x)) seen.set(x, v); });
@@ -87,14 +134,22 @@
                 const seen = [];
                 raw.forEach(v => { if (!seen.includes(v)) seen.push(v); });
                 levels = seen.map(t => ({ key: t, value: NaN, text: t }));
+                // Labels that are one number with the same words around it ("R 20", "U-0.45", "Option 10")
+                // sort by that number; other text keeps file order.
+                const ms = levels.map(l => l.text.match(/^(\D*?)(\d*\.?\d+)(\D*)$/));
+                if (levels.length > 1 && ms.every(m => m && m[1] === ms[0][1] && m[3] === ms[0][3])) {
+                    levels.forEach((l, i) => { l.value = parseFloat(ms[i][2]); });
+                    levels.sort((a, b) => a.value - b.value);
+                    numberLike = true;
+                }
             }
             const idx = new Map(levels.map((l, i) => [l.key, i]));
             const codes = new Int32Array(N);
             raw.forEach((v, r) => { codes[r] = idx.get(numeric ? toNumber(v) : v); });
-            return { col: header[j], label: h.label, name: h.name, unit: h.unit, numeric, levels, codes };
+            return { col: header[j], label: h.label, name: h.name, unit: h.unit, numeric, numberLike, levels, codes };
         });
 
-        const outputs = outCols.map(j => {
+        const allOutputs = outCols.map(j => {
             const h = parseHeader(header[j]);
             const values = new Float64Array(N);
             kept.forEach((r, i) => { values[i] = toNumber(r[j]); });
@@ -103,6 +158,10 @@
             if (!count) { min = 0; max = 1; }
             return { col: header[j], label: h.label, name: h.name, unit: h.unit, values, min, max, count };
         });
+        // Outputs with no numbers at all (text results) cannot be plotted on an axis.
+        const outputs = allOutputs.filter(o => o.count > 0);
+        const skippedOutputs = allOutputs.filter(o => !o.count).map(o => o.label);
+        if (!outputs.length) throw new Error('No "out:" column has numeric values.');
 
         const imgs = imgCol >= 0 ? kept.map(r => String(r[imgCol] || '').trim()) : null;
 
@@ -120,7 +179,8 @@
         let gridSize = 1;
         inputs.forEach(inp => { gridSize *= inp.levels.length; });
 
-        return { N, inputs, outputs, imgs, lookup, duplicates, droppedRows, gridSize, keyOf };
+        return { N, inputs, outputs, imgs, lookup, duplicates, droppedRows, gridSize, keyOf,
+            failed, failedCells: norm.failedCells, skippedOutputs, delimiter: norm.delimiter };
     }
 
     function runCodes(ds, r) { return ds.inputs.map(inp => inp.codes[r]); }
@@ -166,7 +226,7 @@
             let best = -1;
             levelMeans.forEach((m, l) => { if (isFinite(m) && (best < 0 || m < levelMeans[best])) best = l; });
             let direction = 'none';
-            if (inp.numeric && used) {
+            if ((inp.numeric || inp.numberLike) && used) {
                 const fin = levelMeans.map((m, l) => [l, m]).filter(p => isFinite(p[1]));
                 const tol = 1e-9 * (Math.abs(impact) + 1);
                 let up = 0, dn = 0;
@@ -248,7 +308,7 @@
         return lines.join('\n');
     }
 
-    const Core = { parseCSV, toNumber, parseHeader, buildDataset, findRun, runCodes, globalSensitivity, localSensitivity, niceTicks, fmt, demoCSV };
+    const Core = { parseCSV, normalizeCSV, isSentinel, toNumber, parseHeader, buildDataset, findRun, runCodes, globalSensitivity, localSensitivity, niceTicks, fmt, demoCSV };
     if (typeof module !== 'undefined' && module.exports) module.exports = Core;
     root.PECore = Core;
     if (typeof document === 'undefined') return;
@@ -291,6 +351,7 @@
                     </span>
                     <span id="pe-match" class="num"></span>
                 </div>
+                <div class="pe-status pe-notes hidden" id="pe-notes"></div>
                 <div class="pe-status pe-hint">Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.</div>
                 <div class="pe-sliders" id="pe-sliders"></div>
             </section>
@@ -389,11 +450,17 @@
         layoutChart();
         updateSelection();
         renderSensitivity();
+        // Data notes stay visible under the chart: what was cleaned, and why some numbers are missing.
         const notes = [];
+        if (ds.failed.size) notes.push(`<b>${ds.failed.size} run${ds.failed.size > 1 ? 's' : ''} failed</b> (output −999 or an error value in the file); shown as missing and left out of axes and sensitivity`);
         if (ds.droppedRows) notes.push(`${ds.droppedRows} row(s) with blank inputs ignored`);
         if (ds.duplicates) notes.push(`${ds.duplicates} duplicate combination(s), first one used`);
-        if (ds.N - ds.duplicates < ds.gridSize) notes.push(`${ds.gridSize - (ds.N - ds.duplicates)} of ${ds.gridSize} grid combinations have no run`);
-        if (notes.length) toast(notes.join(' · '));
+        const distinct = ds.N - ds.duplicates;
+        if (distinct < ds.gridSize) notes.push(`${(ds.gridSize - distinct).toLocaleString()} of ${ds.gridSize.toLocaleString()} grid combinations have no run`);
+        if (ds.skippedOutputs.length) notes.push(`text-only output column(s) not plotted: ${ds.skippedOutputs.map(esc).join(', ')}`);
+        if (ds.delimiter !== ',') notes.push(`read as a ${ds.delimiter === ';' ? 'semicolon' : 'tab'}-separated file`);
+        $('pe-notes').innerHTML = notes.length ? '<span>Data notes: ' + notes.join(' · ') + '</span>' : '';
+        $('pe-notes').classList.toggle('hidden', !notes.length);
         return true;
     }
     function defaultBaseline() {
@@ -824,6 +891,11 @@
                 <p class="pe-foot" style="margin-top:0">This combination was not simulated. Move a slider, or click a line in the chart.</p>${inputsHtml}`;
             return;
         }
+        if (ds.failed.has(r)) {
+            el.innerHTML = `<div class="pe-big-label">${esc(o.label)}</div><div class="pe-big pe-nomatch" style="font-size:22px;margin:6px 0">Simulation failed</div>
+                <p class="pe-foot" style="margin-top:0">Run #${r + 1} has a failure code (such as −999) or an error instead of results in the file, so it is treated as missing. Re-run this case in Grasshopper to fill it in.</p>${inputsHtml}`;
+            return;
+        }
         const v = o.values[r], bv = b >= 0 ? o.values[b] : NaN, p = pct(v, bv);
         const rows = ds.outputs.map(out => {
             const sv = out.values[r], bb = b >= 0 ? out.values[b] : NaN;
@@ -915,7 +987,7 @@
         } else {
             const r = S.selRun;
             const cur = r >= 0 ? o.values[r] : NaN;
-            $('pe-sens-explain').innerHTML = `From the run selected with the sliders${r >= 0 ? ` (Run #${r + 1}, ${esc(o.name)} = ${fmt(cur, o.max)}${esc(u)})` : ' (<span class="pe-nomatch">no run with this combination</span>)'}, which single change moves <b>${esc(o.label)}</b> the most? Each bar holds every other input where it is and tries every level of one input.`;
+            $('pe-sens-explain').innerHTML = `From the run selected with the sliders${r >= 0 ? (isFinite(cur) ? ` (Run #${r + 1}, ${esc(o.name)} = ${fmt(cur, o.max)}${esc(u)})` : ` (Run #${r + 1}, <span class="pe-nomatch">simulation failed</span>)`) : ' (<span class="pe-nomatch">no run with this combination</span>)'}, which single change moves <b>${esc(o.label)}</b> the most? Each bar holds every other input where it is and tries every level of one input.`;
             const res = localSensitivity(ds, S.sensOut, S.sel).sort((a, b) => (isFinite(b.range) ? b.range : -1) - (isFinite(a.range) ? a.range : -1));
             const valid = res.filter(x => x.pts.length >= 1);
             let lo = Infinity, hi = -Infinity;
