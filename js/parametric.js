@@ -259,6 +259,82 @@
     const $ = id => document.getElementById(id);
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+
+    /* Markup for the explorer; mounted into #pe-root on any page. */
+    const ICON_CAM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+    const MARKUP = `
+        <div class="pe-empty-state hidden" id="pe-empty"></div>
+        <div id="pe-content">
+        <div class="pe-layout">
+            <section class="chart-section" id="pe-pc-section">
+                <div class="section-header">
+                    <h2 class="section-title">Parallel Coordinates · Sliders</h2>
+                    <div class="section-controls">
+                        <label class="control-label pe-check" title="Also highlight runs that differ from the selection in exactly one input"><input type="checkbox" id="pe-show-near"> Show one-change runs</label>
+                        <span id="pe-filter-count" class="data-count num"></span>
+                        <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
+                        <button id="pe-export-pc" class="btn btn-sm pe-btn-export" title="Export chart as PNG">${ICON_CAM} Export</button>
+                    </div>
+                </div>
+                <div class="pe-chart-scroll" id="pe-scroll">
+                    <div class="pe-canvas-wrap" id="pe-wrap">
+                        <canvas id="pe-base"></canvas>
+                        <canvas id="pe-top" class="pe-top"></canvas>
+                    </div>
+                </div>
+                <div class="pe-status">
+                    <span class="pe-legend">
+                        <span><i style="background:var(--pe-sel);height:4px"></i>Selected run</span>
+                        <span id="pe-legend-near" class="hidden"><i style="background:var(--pe-near)"></i>Differs in one input</span>
+                        <span><i style="background:var(--pe-run);opacity:.6"></i>Runs in filter</span>
+                        <span><i style="background:var(--pe-grey)"></i>Filtered out</span>
+                    </span>
+                    <span id="pe-match" class="num"></span>
+                </div>
+                <div class="pe-status pe-hint">Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.</div>
+                <div class="pe-sliders" id="pe-sliders"></div>
+            </section>
+            <section class="chart-section" id="pe-run-section">
+                <div class="section-header">
+                    <h2 class="section-title">Selected Run</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Primary: <select id="pe-primary"></select></label>
+                    </div>
+                </div>
+                <div class="pe-panel-body" id="pe-run"></div>
+            </section>
+        </div>
+        <section class="chart-section" id="pe-sens-section">
+            <div class="section-header">
+                <h2 class="section-title">Sensitivity Analysis</h2>
+                <div class="section-controls">
+                    <div class="pe-seg" id="pe-mode">
+                        <button data-mode="global" class="active">Global</button>
+                        <button data-mode="local">Local</button>
+                    </div>
+                    <label class="control-label">Output: <select id="pe-sens-out"></select></label>
+                    <button id="pe-export-sens" class="btn btn-sm pe-btn-export" title="Export chart as PNG">${ICON_CAM} Export</button>
+                </div>
+            </div>
+            <div class="pe-sens-body">
+                <p class="pe-explain" id="pe-sens-explain"></p>
+                <div id="pe-sens-chart"></div>
+                <p class="pe-foot" id="pe-sens-foot"></p>
+            </div>
+        </section>
+        </div>`;
+    const mount = $('pe-root');
+    if (!mount) return;
+    mount.innerHTML = MARKUP;
+    ['pe-tooltip', 'pe-toast'].forEach(id => {
+        if ($(id)) return;
+        const d = document.createElement('div'); d.id = id;
+        d.className = id === 'pe-toast' ? 'pe-toast' : 'hidden';
+        document.body.appendChild(d);
+    });
+    // Standalone page (parametric.html) has its own load controls; the combined page feeds us through window.PEApp.
+    const STANDALONE = !!$('pe-csv');
+
     const S = {
         ds: null, sel: [], selRun: -1, primary: 0, baseline: -1, baselinePinned: false,
         brushes: {}, inFilter: null, mode: 'global', sensOut: 0, images: new Map(), demo: false, layout: null
@@ -277,28 +353,28 @@
     function unitSuffix(u) { return u ? ' ' + u : ''; }
     function toast(msg) { const t = $('pe-toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
 
-    // ---------- theme ----------
-    function applyTheme(dark) {
-        document.body.classList.toggle('theme-dark', dark);
-        $('pe-theme').textContent = dark ? 'Light' : 'Dark';
-        try { localStorage.setItem('pe-theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
-        if (S.ds) { layoutChart(); renderSensitivity(); }
-    }
-    let stored = null;
-    try { stored = localStorage.getItem('pe-theme'); } catch (e) { /* ignore */ }
-    applyTheme(stored ? stored === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches));
-    $('pe-theme').onclick = () => applyTheme(!document.body.classList.contains('theme-dark'));
+    // ---------- theme: follow js/theme.js ----------
+    function refreshColors() { if (S.ds && S.layout) { drawBase(); drawTop(); renderSensitivity(); } }
+    document.addEventListener('bbb-themechange', refreshColors);
 
     // ---------- loading ----------
+    function showEmpty(msg) {
+        S.ds = null;
+        $('pe-empty').innerHTML = msg; $('pe-empty').classList.remove('hidden'); $('pe-content').classList.add('hidden');
+    }
     function loadText(text, name, demo) {
         let ds;
-        try { ds = buildDataset(text); } catch (e) { alert('Could not read this CSV.\n\n' + e.message); return; }
+        try { ds = buildDataset(text); } catch (e) {
+            if (STANDALONE) { alert('Could not read this CSV.\n\n' + e.message); return false; }
+            showEmpty(`<b>The Parametric Explorer needs a Colibri file.</b> ${esc(e.message)}<br>The Overview tab can still show this file.`);
+            return false;
+        }
+        $('pe-empty').classList.add('hidden'); $('pe-content').classList.remove('hidden');
         S.ds = ds; S.demo = !!demo; S.brushes = {}; S.baselinePinned = false;
         S.primary = 0; S.sensOut = 0;
-        $('pe-demo-badge').classList.toggle('hidden', !demo);
-        $('pe-file-name').textContent = demo ? 'Synthetic numbers, not a real study' : name;
-        $('upload-zone').classList.add('hidden');
-        $('viz-container').classList.remove('hidden');
+        if ($('pe-demo-badge')) $('pe-demo-badge').classList.toggle('hidden', !demo);
+        if ($('pe-file-name')) $('pe-file-name').textContent = demo ? 'Synthetic numbers, not a real study' : (name || '');
+        if (STANDALONE) { $('upload-zone').classList.add('hidden'); $('viz-container').classList.remove('hidden'); }
 
         const opts = ds.outputs.map((o, i) => `<option value="${i}">${esc(o.label)}</option>`).join('');
         $('pe-primary').innerHTML = opts; $('pe-sens-out').innerHTML = opts;
@@ -318,6 +394,7 @@
         if (ds.duplicates) notes.push(`${ds.duplicates} duplicate combination(s), first one used`);
         if (ds.N - ds.duplicates < ds.gridSize) notes.push(`${ds.gridSize - (ds.N - ds.duplicates)} of ${ds.gridSize} grid combinations have no run`);
         if (notes.length) toast(notes.join(' · '));
+        return true;
     }
     function defaultBaseline() {
         const ds = S.ds;
@@ -335,53 +412,80 @@
         fr.onload = () => loadText(String(fr.result), file.name, false);
         fr.readAsText(file);
     }
-    $('pe-csv').onchange = e => { readFile(e.target.files[0]); e.target.value = ''; };
-    $('pe-drop').onclick = () => $('pe-csv').click();
-    $('pe-demo').onclick = () => loadText(demoCSV(), 'Demo data', true);
-    $('pe-imgs').onchange = e => {
-        [...e.target.files].forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
-        toast(`${e.target.files.length} image(s) loaded`);
-        e.target.value = '';
+    function addImages(files, quiet) {
+        const list = [...files].filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name));
+        list.forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
+        if (list.length && !quiet) toast(`${list.length} image(s) loaded`);
         if (S.ds) renderRunPanel();
-    };
-    let dragDepth = 0;
-    window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('pe-dragover'); });
-    window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('pe-dragover'); } });
-    window.addEventListener('dragover', e => e.preventDefault());
-    window.addEventListener('drop', e => {
-        e.preventDefault(); dragDepth = 0; document.body.classList.remove('pe-dragover');
-        const files = [...(e.dataTransfer.files || [])];
-        const csv = files.find(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
-        const imgs = files.filter(f => /^image\//.test(f.type));
-        imgs.forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
-        if (csv) readFile(csv); else if (imgs.length) { toast(`${imgs.length} image(s) loaded`); if (S.ds) renderRunPanel(); }
-    });
+    }
+    if (STANDALONE) {
+        $('pe-csv').onchange = e => { readFile(e.target.files[0]); e.target.value = ''; };
+        $('pe-drop').onclick = () => $('pe-csv').click();
+        $('pe-demo').onclick = () => loadText(demoCSV(), 'Demo data', true);
+        $('pe-imgs').onchange = e => { addImages(e.target.files); e.target.value = ''; };
+        let dragDepth = 0;
+        window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('pe-dragover'); });
+        window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('pe-dragover'); } });
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault(); dragDepth = 0; document.body.classList.remove('pe-dragover');
+            const files = [...(e.dataTransfer.files || [])];
+            const csv = files.find(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
+            const imgs = files.filter(f => /^image\//.test(f.type));
+            if (imgs.length) addImages(imgs, !!csv);
+            if (csv) readFile(csv);
+        });
+    }
     function imgKey(p) { return String(p).split(/[\\/]/).pop().toLowerCase().replace(/\.[a-z0-9]+$/, ''); }
 
     // ---------- sliders ----------
+    /* Step sliders: one dot per tested level, evenly spaced, label centred under its dot. */
+    function stepPos(i, L) { return L < 2 ? 50 : i / (L - 1) * 100; }
     function buildSliders() {
         const ds = S.ds;
         $('pe-sliders').innerHTML = ds.inputs.map((inp, k) => {
             const L = inp.levels.length;
-            const step = L > 7 ? Math.ceil(L / 6) : 1;
-            const ticks = inp.levels.map((l, i) => (i % step === 0 || i === L - 1) ? `<span data-k="${k}" data-l="${i}" title="${esc(l.text)}">${esc(l.text)}</span>` : '<span></span>').join('');
+            const every = L > 7 ? Math.ceil(L / 6) : 1;           // label every n-th level when there are many
+            const maxW = L < 2 ? 100 : Math.max(8, 100 / (L - 1)); // label width (%) so neighbours never overlap
+            const dots = inp.levels.map((l, i) => `<span class="pe-step" data-l="${i}" style="left:${stepPos(i, L)}%" title="${esc(l.text)}"></span>`).join('');
+            const labels = inp.levels.map((l, i) => {
+                const edge = L > 1 && i === 0 ? ' first' : L > 1 && i === L - 1 ? ' last' : '';
+                const show = i % every === 0 || i === L - 1;
+                // a label owns half a step on each side of its dot (edge labels only have one side)
+                return `<span class="pe-step-label${edge}${show ? '' : ' minor'}" data-l="${i}" style="left:${stepPos(i, L)}%;max-width:calc(${edge ? maxW / 2 : maxW}% ${edge ? '+ 9px' : ''})" title="${esc(l.text)}">${esc(l.text)}</span>`;
+            }).join('');
             return `<div class="pe-slider">
-                <label for="pe-s${k}"><span>${esc(inp.label)}</span><b id="pe-sv${k}"></b></label>
-                <input type="range" id="pe-s${k}" min="0" max="${Math.max(0, L - 1)}" step="1" value="${S.sel[k]}" ${L < 2 ? 'disabled' : ''}>
-                <div class="pe-ticks" id="pe-st${k}">${ticks}</div></div>`;
+                <label id="pe-sl${k}"><span>${esc(inp.label)}</span><b id="pe-sv${k}"></b></label>
+                <div class="pe-steps${L < 2 ? ' disabled' : ''}" id="pe-s${k}" data-k="${k}" role="slider" tabindex="${L < 2 ? -1 : 0}"
+                    aria-labelledby="pe-sl${k}" aria-valuemin="0" aria-valuemax="${Math.max(0, L - 1)}">
+                    <div class="pe-steps-track"></div>${dots}
+                </div>
+                <div class="pe-step-labels" id="pe-st${k}">${labels}</div></div>`;
         }).join('');
         ds.inputs.forEach((inp, k) => {
-            $('pe-s' + k).addEventListener('input', e => { S.sel[k] = +e.target.value; updateSelection(); });
-        });
-        $('pe-sliders').querySelectorAll('.pe-ticks span[data-k]').forEach(sp => {
-            sp.onclick = () => { S.sel[+sp.dataset.k] = +sp.dataset.l; updateSelection(); };
+            const el = $('pe-s' + k), L = inp.levels.length;
+            if (L < 2) return;
+            const set = l => { l = Math.max(0, Math.min(L - 1, l)); if (l !== S.sel[k]) { S.sel[k] = l; updateSelection(); } };
+            const fromX = x => { const b = el.getBoundingClientRect(); return Math.round((x - b.left) / b.width * (L - 1)); };
+            el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); el.focus(); set(fromX(e.clientX)); e.preventDefault(); });
+            el.addEventListener('pointermove', e => { if (el.hasPointerCapture(e.pointerId)) set(fromX(e.clientX)); });
+            el.addEventListener('keydown', e => {
+                const m = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+                if (m) { set(S.sel[k] + m); e.preventDefault(); }
+                else if (e.key === 'Home') { set(0); e.preventDefault(); }
+                else if (e.key === 'End') { set(L - 1); e.preventDefault(); }
+            });
+            $('pe-st' + k).querySelectorAll('.pe-step-label').forEach(sp => { sp.onclick = () => set(+sp.dataset.l); });
         });
     }
     function syncSliders() {
         S.ds.inputs.forEach((inp, k) => {
-            $('pe-s' + k).value = S.sel[k];
-            $('pe-sv' + k).textContent = inp.levels[S.sel[k]].text + (inp.numeric && inp.unit && !/%$/.test(inp.levels[S.sel[k]].text) ? ' ' + inp.unit : '');
-            $('pe-st' + k).querySelectorAll('span[data-l]').forEach(sp => sp.classList.toggle('on', +sp.dataset.l === S.sel[k]));
+            const l = S.sel[k], text = inp.levels[l].text + (inp.numeric && inp.unit && !/%$/.test(inp.levels[l].text) ? ' ' + inp.unit : '');
+            const el = $('pe-s' + k);
+            el.setAttribute('aria-valuenow', l); el.setAttribute('aria-valuetext', text);
+            el.querySelectorAll('.pe-step').forEach(d => { const i = +d.dataset.l; d.classList.toggle('on', i === l); });
+            $('pe-sv' + k).textContent = text;
+            $('pe-st' + k).querySelectorAll('.pe-step-label').forEach(sp => sp.classList.toggle('on', +sp.dataset.l === l));
         });
     }
 
@@ -491,25 +595,23 @@
         const ctx = base.getContext('2d');
         ctx.clearRect(0, 0, L.W, L.H);
         const run = css('--pe-run'), grey = css('--pe-grey');
-        const alpha = Math.min(0.55, Math.max(0.035, 9 / Math.pow(ds.N, 0.62)));
+        // "Chart Line Opacity" in Color Settings scales the fade (0.5 = default).
+        const k = parseFloat(css('--chart-line-opacity')); const mult = isFinite(k) && k > 0 ? k / 0.5 : 1;
+        S.baseAlpha = Math.min(0.8, Math.max(0.05, Math.min(0.2, Math.max(0.1, 1.4 / Math.pow(ds.N, 0.35))) * mult));
+        // Lines are drawn opaque and the whole layer is faded. Per-line alpha does not work here: on discrete
+        // axes many runs share a segment, and Chrome's 1 px hairlines add up to near-solid colour.
+        base.style.opacity = S.baseAlpha;
         const anyBrush = Object.keys(S.brushes).length > 0;
         ctx.lineWidth = 1;
         if (anyBrush) {
-            ctx.strokeStyle = withAlpha(grey, Math.min(0.5, alpha * 1.2 + 0.05));
+            ctx.strokeStyle = grey;
             ctx.beginPath();
             for (let r = 0; r < ds.N; r++) if (!S.inFilter[r]) tracePath(ctx, r);
             ctx.stroke();
         }
-        // Stroke in small batches: overlap still builds density across batches, and big files stay fast.
-        const batch = ds.N > 600 ? 12 : 1;
-        ctx.strokeStyle = withAlpha(run, batch > 1 ? Math.min(0.6, alpha * 1.6) : alpha);
-        let n = 0;
+        ctx.strokeStyle = run;
         ctx.beginPath();
-        for (let r = 0; r < ds.N; r++) {
-            if (!S.inFilter[r]) continue;
-            tracePath(ctx, r);
-            if (++n % batch === 0) { ctx.stroke(); ctx.beginPath(); }
-        }
+        for (let r = 0; r < ds.N; r++) if (S.inFilter[r]) tracePath(ctx, r);
         ctx.stroke();
     }
 
@@ -563,10 +665,10 @@
             const a = L.axes[S.drag.a]; const y0 = Math.min(S.drag.y0, S.drag.y1), y1 = Math.max(S.drag.y0, S.drag.y1);
             ctx.fillStyle = withAlpha(accent, 0.25); ctx.fillRect(a.x - 8, y0, 16, y1 - y0);
         }
-        // neighbours (differ in exactly one input)
+        // neighbours (differ in exactly one input): off by default, switched on with "Show one-change runs"
         ctx.strokeStyle = withAlpha(near, 0.85); ctx.lineWidth = 1.6;
         ctx.beginPath();
-        S.ds.inputs.forEach((inp, k) => {
+        if (S.showNear) S.ds.inputs.forEach((inp, k) => {
             const c = S.sel.slice(); // fresh copy per input: only input k differs
             for (let l = 0; l < inp.levels.length; l++) {
                 if (l === S.sel[k]) continue;
@@ -582,9 +684,9 @@
         // selected
         const r = S.selRun;
         if (r >= 0) {
-            ctx.strokeStyle = bg; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+            ctx.strokeStyle = bg; ctx.lineWidth = 7; ctx.lineJoin = 'round';
             ctx.beginPath(); tracePath(ctx, r); ctx.stroke();
-            ctx.strokeStyle = sel; ctx.lineWidth = 3.2;
+            ctx.strokeStyle = sel; ctx.lineWidth = 3.6;
             ctx.beginPath(); tracePath(ctx, r); ctx.stroke();
             drawAxes(ctx);
             ctx.font = fontStr(11.5, 600); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
@@ -844,4 +946,47 @@
             $('pe-sens-foot').innerHTML = `Bars run from the lowest to the highest ${esc(o.label)} reachable by changing only that input. Bar ends are labelled with the level that produces them. Orange dot = current level. Tick marks = every tested level.`;
         }
     }
+
+    // ---------- export ----------
+    function download(canvas, name) {
+        const a = document.createElement('a'); a.download = name; a.href = canvas.toDataURL('image/png'); a.click();
+    }
+    function exportChart() {
+        if (!S.layout) return;
+        const dpr = window.devicePixelRatio || 1, c = document.createElement('canvas');
+        c.width = base.width; c.height = base.height;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = css('--bg-secondary') || '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.globalAlpha = S.baseAlpha || 1; ctx.drawImage(base, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(top, 0, 0);
+        download(c, 'parallel-coordinates.png');
+        void dpr;
+    }
+    function exportSens() {
+        const svg = $('pe-sens-chart').querySelector('svg'); if (!svg) return;
+        const w = +svg.getAttribute('width'), h = +svg.getAttribute('height'), scale = 2;
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('font-family', 'Inter, Helvetica Neue, Arial, sans-serif');
+        const img = new Image();
+        img.onload = () => {
+            const c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale;
+            const ctx = c.getContext('2d'); ctx.fillStyle = css('--bg-secondary') || '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            download(c, `sensitivity-${S.mode}.png`);
+        };
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+    }
+    $('pe-export-pc').onclick = exportChart;
+    $('pe-show-near').onchange = e => { S.showNear = e.target.checked; $('pe-legend-near').classList.toggle('hidden', !S.showNear); drawTop(); };
+    $('pe-export-sens').onclick = exportSens;
+
+    // ---------- API for the combined page ----------
+    root.PEApp = {
+        load: loadText,
+        addImages,
+        clearFilters() { if (!S.ds) return; S.brushes = {}; computeFilter(); drawBase(); drawTop(); },
+        refresh() { if (S.ds) { layoutChart(); renderSensitivity(); } },
+        exportChart, exportSens,
+        get loaded() { return !!S.ds; }
+    };
 })(typeof window !== 'undefined' ? window : globalThis);

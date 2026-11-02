@@ -7,6 +7,7 @@
     <title>BBB Design Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/parametric.css?v=2">
 </head>
 
 <body>
@@ -15,6 +16,8 @@
         <div class="header-left">
             <h1 class="editable-title" id="main-title" title="Double-click to edit">BBB Design Explorer</h1>
             <span class="header-subtitle">Energy Simulation Visualization</span>
+            <span id="pe-demo-badge" class="pe-demo-badge hidden" title="Synthetic numbers for demonstration only">Demo data</span>
+            <span id="pe-file-name" class="pe-file-name"></span>
         </div>
         <div class="header-controls">
             <div class="control-group">
@@ -41,7 +44,7 @@
             </div>
 
             <div class="control-group">
-                <a href="parametric.html" class="btn btn-outline" title="Sliders, selected run and sensitivity for Colibri parametric studies">Parametric Explorer</a>
+                <button id="btn-demo" class="btn btn-outline" title="Load synthetic demo data (labelled Demo data)">Demo data</button>
                 <button id="btn-load-sample" class="btn btn-outline" title="Load sample data">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -97,6 +100,10 @@
                             Plot</button>
                         <button id="btn-export-histogram" class="btn btn-sm btn-primary export-action-btn">Export
                             Distribution</button>
+                        <button id="btn-export-pe" class="btn btn-sm btn-primary export-action-btn">Export
+                            Parametric Chart</button>
+                        <button id="btn-export-pe-sens" class="btn btn-sm btn-primary export-action-btn">Export
+                            Sensitivity Chart</button>
                         <hr class="setting-divider">
                         <button id="btn-export-all-charts"
                             class="btn btn-sm btn-primary export-action-btn export-all-btn">Export All Charts</button>
@@ -120,9 +127,16 @@
                         <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
                     </svg>
                 </button>
+                <button id="btn-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
             </div>
         </div>
     </header>
+
+    <!-- ===== TABS ===== -->
+    <nav class="app-tabs hidden" id="app-tabs" role="tablist">
+        <button class="app-tab" role="tab" data-tab="parametric">Parametric Explorer<span class="tab-new">new</span></button>
+        <button class="app-tab" role="tab" data-tab="overview">Overview</button>
+    </nav>
 
     <!-- ===== MAIN CONTENT ===== -->
     <main id="app-main">
@@ -140,11 +154,19 @@
                 <p>or click to browse files</p>
                 <p class="upload-hint">Supports Colibri format with <code>in:</code> inputs, <code>out:</code> outputs,
                     and <code>img</code> columns</p>
+                <p class="upload-hint">No file at hand? Use <b>Demo data</b> (synthetic, clearly labelled) or <b>Sample Data</b> in the top bar.</p>
             </div>
         </div>
 
         <!-- Visualization Container -->
         <div id="viz-container" class="hidden">
+            <!-- ===== TAB: PARAMETRIC EXPLORER (sliders, selected run, sensitivity) ===== -->
+            <div class="tab-panel" id="tab-parametric">
+                <div id="pe-root"></div>
+            </div>
+
+            <!-- ===== TAB: OVERVIEW (original Design Explorer views) ===== -->
+            <div class="tab-panel hidden" id="tab-overview">
             <!-- ===== PARALLEL COORDINATES ===== -->
             <section class="chart-section" id="parcords-section">
                 <div class="section-header">
@@ -343,6 +365,7 @@
                 </div>
                 <div id="image-gallery" class="gallery-grid"></div>
             </section>
+            </div>
         </div>
     </main>
 
@@ -360,24 +383,24 @@
         <div class="side-panel-body">
             <div class="setting-group">
                 <label class="setting-label">Background Color</label>
-                <input type="color" id="bg-color" value="#ffffff" class="color-input">
+                <input type="color" id="bg-color" value="#ffffff" class="color-input" data-color-var="--bg-primary --bg-secondary">
             </div>
             <div class="setting-group">
                 <label class="setting-label">Header Color</label>
-                <input type="color" id="header-color" value="#1e293b" class="color-input">
+                <input type="color" id="header-color" value="#1e293b" class="color-input" data-color-var="--bg-header">
             </div>
             <div class="setting-group">
                 <label class="setting-label">Accent Color</label>
-                <input type="color" id="accent-color" value="#2563eb" class="color-input">
+                <input type="color" id="accent-color" value="#2563eb" class="color-input" data-color-var="--accent">
             </div>
             <div class="setting-group">
                 <label class="setting-label">Chart Line Color</label>
-                <input type="color" id="chart-line-color" value="#3b82f6" class="color-input">
+                <input type="color" id="chart-line-color" value="#3b82f6" class="color-input" data-color-var="--chart-line-color --pe-run">
             </div>
             <div class="setting-group">
                 <label class="setting-label">Chart Line Opacity</label>
                 <input type="range" id="chart-line-opacity" min="0.05" max="1" step="0.05" value="0.5"
-                    class="range-input">
+                    class="range-input" data-color-var-range="--chart-line-opacity">
                 <span id="opacity-value" class="range-value">0.5</span>
             </div>
             <div class="setting-group">
@@ -385,6 +408,26 @@
                 <input type="range" id="marker-size" min="4" max="20" step="1" value="10" class="range-input">
                 <span id="size-value" class="range-value">10</span>
             </div>
+            <div class="setting-group">
+                <label class="setting-label">Text Color</label>
+                <input type="color" class="color-input" data-color-var="--text-primary --text-header">
+            </div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Parametric Explorer</h4>
+            <div class="setting-group">
+                <label class="setting-label">Selected Run</label>
+                <input type="color" class="color-input" data-color-var="--pe-sel">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Differs in One Input</label>
+                <input type="color" class="color-input" data-color-var="--pe-near">
+            </div>
+            <div class="setting-group">
+                <label class="setting-label">Filtered-out Lines</label>
+                <input type="color" class="color-input" data-color-var="--pe-grey">
+            </div>
+            <p class="setting-hint">Run lines use Chart Line Color; line density follows Chart Line Opacity.</p>
+            <button id="btn-reset-colors" class="btn btn-sm btn-outline" style="width:100%;justify-content:center;">Reset Colors to Theme</button>
             <hr class="setting-divider">
             <h4 class="setting-section-title">Custom Color Gradient (HSB)</h4>
             <p class="setting-hint">Define start and end colors to create a custom gradient for charts.</p>
@@ -495,8 +538,11 @@
     <!-- ===== SCRIPTS ===== -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="js/theme.js?v=1"></script>
     <script src="js/app.js?v=13"></script>
     <script src="js/sensitivity.js?v=3"></script>
+    <script src="js/parametric.js?v=2"></script>
+    <script src="js/combined.js?v=1"></script>
 </body>
 
 </html>

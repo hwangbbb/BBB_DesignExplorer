@@ -7,7 +7,7 @@
     <title>Parametric Explorer · BBB Design Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=3">
-    <link rel="stylesheet" href="css/parametric.css?v=1">
+    <link rel="stylesheet" href="css/parametric.css?v=2">
 </head>
 
 <body>
@@ -26,7 +26,8 @@
                 <input type="file" id="pe-imgs" accept="image/*" multiple hidden>
                 <button id="pe-demo" class="btn btn-outline" title="Load synthetic demo data (labelled Demo data)">Demo data</button>
                 <a href="index.html" class="btn btn-outline" title="Back to the overview page">Overview</a>
-                <button id="pe-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
+                <button id="btn-color-panel" class="btn btn-outline" data-panel-open="color-panel" title="Color settings">Colors</button>
+                <button id="btn-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
             </div>
         </div>
     </header>
@@ -43,78 +44,47 @@
         </div>
 
         <div id="viz-container" class="hidden">
-            <div class="pe-layout">
-                <!-- VIEW 1 -->
-                <section class="chart-section" id="pe-pc-section">
-                    <div class="section-header">
-                        <h2 class="section-title">Parallel Coordinates</h2>
-                        <div class="section-controls">
-                            <span id="pe-filter-count" class="data-count num"></span>
-                            <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
-                        </div>
-                    </div>
-                    <div class="pe-chart-scroll" id="pe-scroll">
-                        <div class="pe-canvas-wrap" id="pe-wrap">
-                            <canvas id="pe-base"></canvas>
-                            <canvas id="pe-top" class="pe-top"></canvas>
-                        </div>
-                    </div>
-                    <div class="pe-status">
-                        <span class="pe-legend">
-                            <span><i style="background:var(--pe-sel);height:4px"></i>Selected run</span>
-                            <span><i style="background:var(--pe-near)"></i>Differs in one input</span>
-                            <span><i style="background:var(--pe-run);opacity:.6"></i>Runs in filter</span>
-                            <span><i style="background:var(--pe-grey)"></i>Filtered out</span>
-                        </span>
-                        <span id="pe-match" class="num"></span>
-                    </div>
-                    <div class="pe-status" style="border-top:0;padding-top:0;color:var(--text-muted);font-size:12px">
-                        Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.
-                    </div>
-                    <div class="pe-sliders" id="pe-sliders"></div>
-                </section>
-
-                <!-- SELECTED RUN -->
-                <section class="chart-section" id="pe-run-section">
-                    <div class="section-header">
-                        <h2 class="section-title">Selected Run</h2>
-                        <div class="section-controls">
-                            <label class="control-label">Primary:
-                                <select id="pe-primary"></select>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="pe-panel-body" id="pe-run"></div>
-                </section>
-            </div>
-
-            <!-- VIEW 2 -->
-            <section class="chart-section" id="pe-sens-section">
-                <div class="section-header">
-                    <h2 class="section-title">Sensitivity Analysis</h2>
-                    <div class="section-controls">
-                        <div class="pe-seg" id="pe-mode">
-                            <button data-mode="global" class="active">Global</button>
-                            <button data-mode="local">Local</button>
-                        </div>
-                        <label class="control-label">Output:
-                            <select id="pe-sens-out"></select>
-                        </label>
-                    </div>
-                </div>
-                <div class="pe-sens-body">
-                    <p class="setting-hint" id="pe-sens-explain" style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);max-width:980px"></p>
-                    <div id="pe-sens-chart"></div>
-                    <p class="pe-foot" id="pe-sens-foot"></p>
-                </div>
-            </section>
+            <div id="pe-root"></div>
         </div>
     </main>
 
-    <div id="pe-tooltip" class="hidden"></div>
-    <div id="pe-toast" class="pe-toast"></div>
+    <!-- COLOR SETTINGS -->
+    <div id="color-panel" class="side-panel">
+        <div class="side-panel-header">
+            <h3>Color Settings</h3>
+            <button class="btn btn-icon btn-icon-sm" data-panel-close title="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+        </div>
+        <div class="side-panel-body">
+            <h4 class="setting-section-title">Preset Themes</h4>
+            <div class="theme-presets">
+                <button class="theme-btn" data-theme="light"><span class="theme-preview" style="background:linear-gradient(135deg,#ffffff,#e4e4e4)"></span>Light</button>
+                <button class="theme-btn" data-theme="dark"><span class="theme-preview" style="background:linear-gradient(135deg,#262626,#0e0e0e)"></span>Dark</button>
+                <button class="theme-btn" data-theme="ocean"><span class="theme-preview" style="background:linear-gradient(135deg,#0c4a6e,#164e63)"></span>Ocean</button>
+                <button class="theme-btn" data-theme="forest"><span class="theme-preview" style="background:linear-gradient(135deg,#14532d,#1e3a2f)"></span>Forest</button>
+                <button class="theme-btn" data-theme="sunset"><span class="theme-preview" style="background:linear-gradient(135deg,#7c2d12,#78350f)"></span>Sunset</button>
+                <button class="theme-btn" data-theme="architect"><span class="theme-preview" style="background:linear-gradient(135deg,#fafaf9,#d6d3d1)"></span>Architect</button>
+            </div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Parametric Explorer</h4>
+            <div class="setting-group"><label class="setting-label">Selected run</label><input type="color" data-color-var="--pe-sel" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Differs in one input</label><input type="color" data-color-var="--pe-near" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Run lines</label><input type="color" data-color-var="--pe-run --chart-line-color" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Filtered-out lines</label><input type="color" data-color-var="--pe-grey" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Line density</label><input type="range" min="0.1" max="1" step="0.05" value="0.5" data-color-var-range="--chart-line-opacity" class="range-input"></div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Page</h4>
+            <div class="setting-group"><label class="setting-label">Background</label><input type="color" data-color-var="--bg-primary --bg-secondary --bg-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Text</label><input type="color" data-color-var="--text-primary --text-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Accent</label><input type="color" data-color-var="--accent" class="color-input"></div>
+            <button id="btn-reset-colors" class="btn btn-sm btn-outline" style="width:100%;justify-content:center;margin-top:8px">Reset colors to theme</button>
+        </div>
+    </div>
+    <div id="panel-overlay" class="panel-overlay hidden"></div>
 
-    <script src="js/parametric.js?v=1"></script>
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/parametric.js?v=2"></script>
 </body>
 
 </html>

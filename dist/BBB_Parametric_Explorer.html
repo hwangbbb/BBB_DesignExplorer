@@ -904,7 +904,7 @@ body {
     --pe-good: #11804a;
     --pe-bad: #c62828;
 }
-body.theme-dark {
+body.theme-dark, body.theme-ocean, body.theme-forest, body.theme-sunset {
     --pe-run: #7fa3e6;
     --pe-sel: #ff9a3c;
     --pe-near: #2fd1c4;
@@ -943,12 +943,12 @@ body { font-variant-numeric: tabular-nums; }
 .pe-sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px 24px; padding: 16px 20px; border-top: 1px solid var(--border); }
 .pe-slider label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
 .pe-slider label b { font-weight: 500; color: var(--pe-sel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pe-slider input[type=range] { width: 100%; accent-color: var(--pe-sel); }
-.pe-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); gap: 4px; }
-.pe-ticks span { flex: 1 1 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.pe-ticks span:first-child { text-align: left; }
-.pe-ticks span:last-child { text-align: right; }
-.pe-ticks span.on { color: var(--pe-sel); font-weight: 600; }
+
+
+
+
+
+
 
 .pe-panel-body { padding: 16px 20px 20px; }
 .pe-big { font-size: 44px; font-weight: 500; letter-spacing: -0.03em; line-height: 1.1; }
@@ -997,6 +997,74 @@ body.pe-dragover::after {
     background: color-mix(in srgb, var(--bg-primary) 80%, transparent); font-size: 22px; z-index: 400; border: 3px dashed var(--accent);
 }
 
+body.theme-ocean { --pe-grey: #2a6a8f; --pe-near: #5eead4; }
+body.theme-forest { --pe-grey: #2f6b45; --pe-run: #bbf7d0; --pe-near: #67e8f9; }
+body.theme-sunset { --pe-grey: #4a4440; --pe-run: #fcd34d; --pe-near: #5eead4; }
+body.theme-architect { --pe-run: #78716c; --pe-near: #0f766e; }
+
+.pe-explain { margin: 0 0 10px; font-size: 13px; color: var(--text-secondary); max-width: 980px; line-height: 1.55; }
+.pe-hint { border-top: 0; padding-top: 0; color: var(--text-muted); font-size: 12px; }
+.pe-empty-state { padding: 40px 24px; border: 1px dashed var(--border-strong); color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+#pe-root > #pe-content { display: flex; flex-direction: column; gap: 28px; }
+#pe-root > #pe-content.hidden { display: none; }
+
+/* Tabs (combined page) */
+.app-tabs {
+    display: flex; gap: 0; padding: 0 clamp(20px, 4vw, 64px); border-bottom: 1px solid var(--border);
+    background: var(--bg-header); position: sticky; top: 64px; z-index: 90;
+}
+.app-tab {
+    background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    padding: 12px 18px 10px; font: inherit; font-size: 14px; color: var(--text-muted); cursor: pointer;
+}
+.app-tab:hover { color: var(--text-primary); }
+.app-tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); font-weight: 500; }
+.app-tab .tab-new { font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--pe-sel); margin-left: 6px; vertical-align: 2px; }
+.tab-panel { display: flex; flex-direction: column; gap: 28px; }
+.tab-panel.hidden { display: none !important; }
+.theme-btn.active { outline: 2px solid var(--text-primary); outline-offset: -2px; }
+.header-left { flex-wrap: nowrap; overflow: hidden; }
+.header-controls { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 1280px) { .header-subtitle, .pe-file-name { display: none; } }
+/* Same look as .btn-export-chart; separate class so app.js does not bind it as a Plotly export */
+.pe-btn-export { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); font-size: 0.75rem; padding: 3px 8px; gap: 4px; }
+.pe-btn-export:hover { border-color: var(--text-primary); color: var(--text-primary); }
+
+/* Side panel: never scroll sideways (the HSB columns used to push it, hiding the left edge) */
+.side-panel-body { overflow-x: hidden; }
+.hsb-column { min-width: 0; }
+.hsb-swatch, .hsb-gradient-preview { max-width: 100%; }
+
+/* Header: grow instead of overflowing when the controls wrap */
+#app-header { height: auto; min-height: 64px; padding-top: 10px; padding-bottom: 10px; gap: 16px; }
+.app-tabs { position: static; }
+.pe-demo-badge { white-space: nowrap; }
+.pe-file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+
+/* Step sliders: a dot for every tested value */
+.pe-steps { position: relative; height: 22px; margin: 2px 9px 0; cursor: pointer; touch-action: none; outline: none; }
+.pe-steps.disabled { cursor: default; opacity: .5; }
+.pe-steps-track { position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: var(--border-strong); }
+.pe-step {
+    position: absolute; top: 11px; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+    background: var(--bg-secondary); border: 2px solid var(--text-muted); box-sizing: border-box;
+    transition: transform .12s var(--ease), background-color .12s, border-color .12s;
+}
+.pe-steps:hover .pe-step:not(.on) { border-color: var(--text-secondary); }
+.pe-step.on { background: var(--pe-sel); border-color: var(--pe-sel); transform: scale(1.7); }
+.pe-steps:focus-visible .pe-step.on { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pe-sel) 35%, transparent); }
+.pe-step-labels { position: relative; height: 18px; margin: 2px 9px 0; font-size: 11px; color: var(--text-muted); }
+.pe-step-label {
+    position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-align: center; cursor: pointer; padding: 0 2px; font-variant-numeric: tabular-nums;
+}
+.pe-step-label.first { transform: translateX(-9px); text-align: left; }
+.pe-step-label.last { transform: translateX(calc(-100% + 9px)); text-align: right; }
+.pe-step-label.minor { visibility: hidden; }
+.pe-step-label.on { color: var(--pe-sel); font-weight: 600; visibility: visible; }
+.pe-check { cursor: pointer; gap: 6px; }
+.pe-check input { accent-color: var(--pe-sel); }
+
 </style>
 </head>
 
@@ -1015,7 +1083,8 @@ body.pe-dragover::after {
                 <label for="pe-imgs" class="btn btn-secondary" title="Pick the run screenshots so the img column can be shown">Load Images</label>
                 <input type="file" id="pe-imgs" accept="image/*" multiple hidden>
                 <button id="pe-demo" class="btn btn-outline" title="Load synthetic demo data (labelled Demo data)">Demo data</button>
-                <button id="pe-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
+                <button id="btn-color-panel" class="btn btn-outline" data-panel-open="color-panel" title="Color settings">Colors</button>
+                <button id="btn-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
             </div>
         </div>
     </header>
@@ -1032,77 +1101,161 @@ body.pe-dragover::after {
         </div>
 
         <div id="viz-container" class="hidden">
-            <div class="pe-layout">
-                <!-- VIEW 1 -->
-                <section class="chart-section" id="pe-pc-section">
-                    <div class="section-header">
-                        <h2 class="section-title">Parallel Coordinates</h2>
-                        <div class="section-controls">
-                            <span id="pe-filter-count" class="data-count num"></span>
-                            <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
-                        </div>
-                    </div>
-                    <div class="pe-chart-scroll" id="pe-scroll">
-                        <div class="pe-canvas-wrap" id="pe-wrap">
-                            <canvas id="pe-base"></canvas>
-                            <canvas id="pe-top" class="pe-top"></canvas>
-                        </div>
-                    </div>
-                    <div class="pe-status">
-                        <span class="pe-legend">
-                            <span><i style="background:var(--pe-sel);height:4px"></i>Selected run</span>
-                            <span><i style="background:var(--pe-near)"></i>Differs in one input</span>
-                            <span><i style="background:var(--pe-run);opacity:.6"></i>Runs in filter</span>
-                            <span><i style="background:var(--pe-grey)"></i>Filtered out</span>
-                        </span>
-                        <span id="pe-match" class="num"></span>
-                    </div>
-                    <div class="pe-status" style="border-top:0;padding-top:0;color:var(--text-muted);font-size:12px">
-                        Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.
-                    </div>
-                    <div class="pe-sliders" id="pe-sliders"></div>
-                </section>
-
-                <!-- SELECTED RUN -->
-                <section class="chart-section" id="pe-run-section">
-                    <div class="section-header">
-                        <h2 class="section-title">Selected Run</h2>
-                        <div class="section-controls">
-                            <label class="control-label">Primary:
-                                <select id="pe-primary"></select>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="pe-panel-body" id="pe-run"></div>
-                </section>
-            </div>
-
-            <!-- VIEW 2 -->
-            <section class="chart-section" id="pe-sens-section">
-                <div class="section-header">
-                    <h2 class="section-title">Sensitivity Analysis</h2>
-                    <div class="section-controls">
-                        <div class="pe-seg" id="pe-mode">
-                            <button data-mode="global" class="active">Global</button>
-                            <button data-mode="local">Local</button>
-                        </div>
-                        <label class="control-label">Output:
-                            <select id="pe-sens-out"></select>
-                        </label>
-                    </div>
-                </div>
-                <div class="pe-sens-body">
-                    <p class="setting-hint" id="pe-sens-explain" style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);max-width:980px"></p>
-                    <div id="pe-sens-chart"></div>
-                    <p class="pe-foot" id="pe-sens-foot"></p>
-                </div>
-            </section>
+            <div id="pe-root"></div>
         </div>
     </main>
 
-    <div id="pe-tooltip" class="hidden"></div>
-    <div id="pe-toast" class="pe-toast"></div>
+    <!-- COLOR SETTINGS -->
+    <div id="color-panel" class="side-panel">
+        <div class="side-panel-header">
+            <h3>Color Settings</h3>
+            <button class="btn btn-icon btn-icon-sm" data-panel-close title="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+        </div>
+        <div class="side-panel-body">
+            <h4 class="setting-section-title">Preset Themes</h4>
+            <div class="theme-presets">
+                <button class="theme-btn" data-theme="light"><span class="theme-preview" style="background:linear-gradient(135deg,#ffffff,#e4e4e4)"></span>Light</button>
+                <button class="theme-btn" data-theme="dark"><span class="theme-preview" style="background:linear-gradient(135deg,#262626,#0e0e0e)"></span>Dark</button>
+                <button class="theme-btn" data-theme="ocean"><span class="theme-preview" style="background:linear-gradient(135deg,#0c4a6e,#164e63)"></span>Ocean</button>
+                <button class="theme-btn" data-theme="forest"><span class="theme-preview" style="background:linear-gradient(135deg,#14532d,#1e3a2f)"></span>Forest</button>
+                <button class="theme-btn" data-theme="sunset"><span class="theme-preview" style="background:linear-gradient(135deg,#7c2d12,#78350f)"></span>Sunset</button>
+                <button class="theme-btn" data-theme="architect"><span class="theme-preview" style="background:linear-gradient(135deg,#fafaf9,#d6d3d1)"></span>Architect</button>
+            </div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Parametric Explorer</h4>
+            <div class="setting-group"><label class="setting-label">Selected run</label><input type="color" data-color-var="--pe-sel" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Differs in one input</label><input type="color" data-color-var="--pe-near" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Run lines</label><input type="color" data-color-var="--pe-run --chart-line-color" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Filtered-out lines</label><input type="color" data-color-var="--pe-grey" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Line density</label><input type="range" min="0.1" max="1" step="0.05" value="0.5" data-color-var-range="--chart-line-opacity" class="range-input"></div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Page</h4>
+            <div class="setting-group"><label class="setting-label">Background</label><input type="color" data-color-var="--bg-primary --bg-secondary --bg-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Text</label><input type="color" data-color-var="--text-primary --text-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Accent</label><input type="color" data-color-var="--accent" class="color-input"></div>
+            <button id="btn-reset-colors" class="btn btn-sm btn-outline" style="width:100%;justify-content:center;margin-top:8px">Reset colors to theme</button>
+        </div>
+    </div>
+    <div id="panel-overlay" class="panel-overlay hidden"></div>
 
+    <script>
+/* ============================================================
+   BBB Design Explorer - shared theme and colour settings
+   - Theme presets (light, dark, ocean, forest, sunset, architect)
+   - Custom colours from any <input data-color-var="--name">
+   - Saved in localStorage, shared by every page
+   - Fires a 'bbb-themechange' event on document so charts can redraw
+   Custom colours are set on <body> (inline style), so they win over
+   the body.theme-* rules; setting them on <html> was ignored by every
+   theme except Light.
+   ============================================================ */
+(function () {
+    'use strict';
+    const THEMES = ['light', 'dark', 'ocean', 'forest', 'sunset', 'architect'];
+    const DARK = ['dark', 'ocean', 'forest', 'sunset'];
+    const store = {
+        get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+        set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+        del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+    };
+    let colors = {};
+    try { colors = JSON.parse(store.get('bbb-colors') || '{}') || {}; } catch (e) { colors = {}; }
+    let theme = store.get('bbb-theme');
+    if (!THEMES.includes(theme)) theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+
+    let pending = 0;
+    function notify() {
+        if (pending) return;
+        pending = requestAnimationFrame(() => { pending = 0; document.dispatchEvent(new CustomEvent('bbb-themechange', { detail: { theme, colors } })); });
+    }
+    function toHex(c) {
+        c = String(c).trim();
+        if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+        if (/^#[0-9a-f]{3}$/i.test(c)) return '#' + c.slice(1).split('').map(x => x + x).join('');
+        const m = c.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+        return m ? '#' + [m[1], m[2], m[3]].map(v => (+v).toString(16).padStart(2, '0')).join('') : null;
+    }
+    /* Show the colour each picker currently resolves to. */
+    function syncInputs() {
+        const cs = getComputedStyle(document.body);
+        document.querySelectorAll('input[data-color-var]').forEach(inp => {
+            const hex = toHex(cs.getPropertyValue(inp.dataset.colorVar.split(/\s+/)[0]));
+            if (hex) inp.value = hex;
+        });
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
+        const t = document.getElementById('btn-theme');
+        if (t) t.textContent = isDark() ? 'Light' : 'Dark';
+    }
+    function applyColors() {
+        Object.entries(colors).forEach(([k, v]) => document.body.style.setProperty(k, v));
+    }
+    function setTheme(name, keepColors) {
+        if (!THEMES.includes(name)) name = 'light';
+        theme = name;
+        THEMES.forEach(t => document.body.classList.remove('theme-' + t));
+        if (name !== 'light') document.body.classList.add('theme-' + name);
+        if (!keepColors) clearColors(true);
+        store.set('bbb-theme', name);
+        syncInputs(); notify();
+    }
+    function setColor(name, value) {
+        colors[name] = value;
+        document.body.style.setProperty(name, value);
+        if (name === '--accent') document.body.style.setProperty('--accent-hover', value);
+        store.set('bbb-colors', JSON.stringify(colors));
+        notify();
+    }
+    function clearColors(silent) {
+        Object.keys(colors).forEach(k => document.body.style.removeProperty(k));
+        document.body.style.removeProperty('--accent-hover');
+        colors = {};
+        store.del('bbb-colors');
+        if (!silent) { syncInputs(); notify(); }
+    }
+    function isDark() { return DARK.includes(theme); }
+
+    function wire() {
+        document.querySelectorAll('input[data-color-var]').forEach(inp => {
+            // data-color-var may list several variables, e.g. "--bg-primary --bg-secondary"
+            inp.addEventListener('input', () => inp.dataset.colorVar.split(/\s+/).forEach(v => setColor(v, inp.value)));
+        });
+        document.querySelectorAll('[data-color-var-range]').forEach(inp => {
+            const saved = colors[inp.dataset.colorVarRange];
+            if (saved) inp.value = saved;
+            inp.addEventListener('input', () => setColor(inp.dataset.colorVarRange, inp.value));
+        });
+        document.querySelectorAll('.theme-btn').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
+        const t = document.getElementById('btn-theme');
+        if (t) t.addEventListener('click', () => setTheme(isDark() ? 'light' : 'dark'));
+        const r = document.getElementById('btn-reset-colors');
+        if (r) r.addEventListener('click', () => clearColors());
+        // Generic open / close for side panels: [data-panel-open="id"], [data-panel-close]
+        const overlay = document.getElementById('panel-overlay');
+        document.querySelectorAll('[data-panel-open]').forEach(btn => btn.addEventListener('click', () => {
+            const p = document.getElementById(btn.dataset.panelOpen); if (!p) return;
+            const open = !p.classList.contains('open');
+            document.querySelectorAll('.side-panel.open').forEach(x => x.classList.remove('open'));
+            p.classList.toggle('open', open);
+            if (overlay) overlay.classList.toggle('hidden', !open);
+        }));
+        const closeAll = () => { document.querySelectorAll('.side-panel.open').forEach(x => x.classList.remove('open')); if (overlay) overlay.classList.add('hidden'); };
+        document.querySelectorAll('[data-panel-close]').forEach(b => b.addEventListener('click', closeAll));
+        if (overlay && !overlay.dataset.ownedByApp) overlay.addEventListener('click', closeAll);
+        syncInputs();
+    }
+
+    // Apply immediately (script sits at the end of <body>) to avoid a flash of the wrong theme.
+    THEMES.forEach(t => document.body.classList.remove('theme-' + t));
+    if (theme !== 'light') document.body.classList.add('theme-' + theme);
+    applyColors();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+
+    window.BBBTheme = { setTheme, setColor, clearColors, isDark, get theme() { return theme; }, get colors() { return Object.assign({}, colors); }, syncInputs };
+})();
+
+</script>
     <script>
 /* ============================================================
    BBB Design Explorer - Parametric Explorer
@@ -1365,6 +1518,82 @@ body.pe-dragover::after {
     const $ = id => document.getElementById(id);
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+
+    /* Markup for the explorer; mounted into #pe-root on any page. */
+    const ICON_CAM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+    const MARKUP = `
+        <div class="pe-empty-state hidden" id="pe-empty"></div>
+        <div id="pe-content">
+        <div class="pe-layout">
+            <section class="chart-section" id="pe-pc-section">
+                <div class="section-header">
+                    <h2 class="section-title">Parallel Coordinates · Sliders</h2>
+                    <div class="section-controls">
+                        <label class="control-label pe-check" title="Also highlight runs that differ from the selection in exactly one input"><input type="checkbox" id="pe-show-near"> Show one-change runs</label>
+                        <span id="pe-filter-count" class="data-count num"></span>
+                        <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
+                        <button id="pe-export-pc" class="btn btn-sm pe-btn-export" title="Export chart as PNG">${ICON_CAM} Export</button>
+                    </div>
+                </div>
+                <div class="pe-chart-scroll" id="pe-scroll">
+                    <div class="pe-canvas-wrap" id="pe-wrap">
+                        <canvas id="pe-base"></canvas>
+                        <canvas id="pe-top" class="pe-top"></canvas>
+                    </div>
+                </div>
+                <div class="pe-status">
+                    <span class="pe-legend">
+                        <span><i style="background:var(--pe-sel);height:4px"></i>Selected run</span>
+                        <span id="pe-legend-near" class="hidden"><i style="background:var(--pe-near)"></i>Differs in one input</span>
+                        <span><i style="background:var(--pe-run);opacity:.6"></i>Runs in filter</span>
+                        <span><i style="background:var(--pe-grey)"></i>Filtered out</span>
+                    </span>
+                    <span id="pe-match" class="num"></span>
+                </div>
+                <div class="pe-status pe-hint">Drag up or down on an axis to filter. Click a filter band to clear it. Click a line to select that run.</div>
+                <div class="pe-sliders" id="pe-sliders"></div>
+            </section>
+            <section class="chart-section" id="pe-run-section">
+                <div class="section-header">
+                    <h2 class="section-title">Selected Run</h2>
+                    <div class="section-controls">
+                        <label class="control-label">Primary: <select id="pe-primary"></select></label>
+                    </div>
+                </div>
+                <div class="pe-panel-body" id="pe-run"></div>
+            </section>
+        </div>
+        <section class="chart-section" id="pe-sens-section">
+            <div class="section-header">
+                <h2 class="section-title">Sensitivity Analysis</h2>
+                <div class="section-controls">
+                    <div class="pe-seg" id="pe-mode">
+                        <button data-mode="global" class="active">Global</button>
+                        <button data-mode="local">Local</button>
+                    </div>
+                    <label class="control-label">Output: <select id="pe-sens-out"></select></label>
+                    <button id="pe-export-sens" class="btn btn-sm pe-btn-export" title="Export chart as PNG">${ICON_CAM} Export</button>
+                </div>
+            </div>
+            <div class="pe-sens-body">
+                <p class="pe-explain" id="pe-sens-explain"></p>
+                <div id="pe-sens-chart"></div>
+                <p class="pe-foot" id="pe-sens-foot"></p>
+            </div>
+        </section>
+        </div>`;
+    const mount = $('pe-root');
+    if (!mount) return;
+    mount.innerHTML = MARKUP;
+    ['pe-tooltip', 'pe-toast'].forEach(id => {
+        if ($(id)) return;
+        const d = document.createElement('div'); d.id = id;
+        d.className = id === 'pe-toast' ? 'pe-toast' : 'hidden';
+        document.body.appendChild(d);
+    });
+    // Standalone page (parametric.html) has its own load controls; the combined page feeds us through window.PEApp.
+    const STANDALONE = !!$('pe-csv');
+
     const S = {
         ds: null, sel: [], selRun: -1, primary: 0, baseline: -1, baselinePinned: false,
         brushes: {}, inFilter: null, mode: 'global', sensOut: 0, images: new Map(), demo: false, layout: null
@@ -1383,28 +1612,28 @@ body.pe-dragover::after {
     function unitSuffix(u) { return u ? ' ' + u : ''; }
     function toast(msg) { const t = $('pe-toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
 
-    // ---------- theme ----------
-    function applyTheme(dark) {
-        document.body.classList.toggle('theme-dark', dark);
-        $('pe-theme').textContent = dark ? 'Light' : 'Dark';
-        try { localStorage.setItem('pe-theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
-        if (S.ds) { layoutChart(); renderSensitivity(); }
-    }
-    let stored = null;
-    try { stored = localStorage.getItem('pe-theme'); } catch (e) { /* ignore */ }
-    applyTheme(stored ? stored === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches));
-    $('pe-theme').onclick = () => applyTheme(!document.body.classList.contains('theme-dark'));
+    // ---------- theme: follow js/theme.js ----------
+    function refreshColors() { if (S.ds && S.layout) { drawBase(); drawTop(); renderSensitivity(); } }
+    document.addEventListener('bbb-themechange', refreshColors);
 
     // ---------- loading ----------
+    function showEmpty(msg) {
+        S.ds = null;
+        $('pe-empty').innerHTML = msg; $('pe-empty').classList.remove('hidden'); $('pe-content').classList.add('hidden');
+    }
     function loadText(text, name, demo) {
         let ds;
-        try { ds = buildDataset(text); } catch (e) { alert('Could not read this CSV.\n\n' + e.message); return; }
+        try { ds = buildDataset(text); } catch (e) {
+            if (STANDALONE) { alert('Could not read this CSV.\n\n' + e.message); return false; }
+            showEmpty(`<b>The Parametric Explorer needs a Colibri file.</b> ${esc(e.message)}<br>The Overview tab can still show this file.`);
+            return false;
+        }
+        $('pe-empty').classList.add('hidden'); $('pe-content').classList.remove('hidden');
         S.ds = ds; S.demo = !!demo; S.brushes = {}; S.baselinePinned = false;
         S.primary = 0; S.sensOut = 0;
-        $('pe-demo-badge').classList.toggle('hidden', !demo);
-        $('pe-file-name').textContent = demo ? 'Synthetic numbers, not a real study' : name;
-        $('upload-zone').classList.add('hidden');
-        $('viz-container').classList.remove('hidden');
+        if ($('pe-demo-badge')) $('pe-demo-badge').classList.toggle('hidden', !demo);
+        if ($('pe-file-name')) $('pe-file-name').textContent = demo ? 'Synthetic numbers, not a real study' : (name || '');
+        if (STANDALONE) { $('upload-zone').classList.add('hidden'); $('viz-container').classList.remove('hidden'); }
 
         const opts = ds.outputs.map((o, i) => `<option value="${i}">${esc(o.label)}</option>`).join('');
         $('pe-primary').innerHTML = opts; $('pe-sens-out').innerHTML = opts;
@@ -1424,6 +1653,7 @@ body.pe-dragover::after {
         if (ds.duplicates) notes.push(`${ds.duplicates} duplicate combination(s), first one used`);
         if (ds.N - ds.duplicates < ds.gridSize) notes.push(`${ds.gridSize - (ds.N - ds.duplicates)} of ${ds.gridSize} grid combinations have no run`);
         if (notes.length) toast(notes.join(' · '));
+        return true;
     }
     function defaultBaseline() {
         const ds = S.ds;
@@ -1441,53 +1671,80 @@ body.pe-dragover::after {
         fr.onload = () => loadText(String(fr.result), file.name, false);
         fr.readAsText(file);
     }
-    $('pe-csv').onchange = e => { readFile(e.target.files[0]); e.target.value = ''; };
-    $('pe-drop').onclick = () => $('pe-csv').click();
-    $('pe-demo').onclick = () => loadText(demoCSV(), 'Demo data', true);
-    $('pe-imgs').onchange = e => {
-        [...e.target.files].forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
-        toast(`${e.target.files.length} image(s) loaded`);
-        e.target.value = '';
+    function addImages(files, quiet) {
+        const list = [...files].filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|gif|webp|bmp)$/i.test(f.name));
+        list.forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
+        if (list.length && !quiet) toast(`${list.length} image(s) loaded`);
         if (S.ds) renderRunPanel();
-    };
-    let dragDepth = 0;
-    window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('pe-dragover'); });
-    window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('pe-dragover'); } });
-    window.addEventListener('dragover', e => e.preventDefault());
-    window.addEventListener('drop', e => {
-        e.preventDefault(); dragDepth = 0; document.body.classList.remove('pe-dragover');
-        const files = [...(e.dataTransfer.files || [])];
-        const csv = files.find(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
-        const imgs = files.filter(f => /^image\//.test(f.type));
-        imgs.forEach(f => S.images.set(imgKey(f.name), URL.createObjectURL(f)));
-        if (csv) readFile(csv); else if (imgs.length) { toast(`${imgs.length} image(s) loaded`); if (S.ds) renderRunPanel(); }
-    });
+    }
+    if (STANDALONE) {
+        $('pe-csv').onchange = e => { readFile(e.target.files[0]); e.target.value = ''; };
+        $('pe-drop').onclick = () => $('pe-csv').click();
+        $('pe-demo').onclick = () => loadText(demoCSV(), 'Demo data', true);
+        $('pe-imgs').onchange = e => { addImages(e.target.files); e.target.value = ''; };
+        let dragDepth = 0;
+        window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('pe-dragover'); });
+        window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('pe-dragover'); } });
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault(); dragDepth = 0; document.body.classList.remove('pe-dragover');
+            const files = [...(e.dataTransfer.files || [])];
+            const csv = files.find(f => /\.csv$/i.test(f.name) || f.type === 'text/csv');
+            const imgs = files.filter(f => /^image\//.test(f.type));
+            if (imgs.length) addImages(imgs, !!csv);
+            if (csv) readFile(csv);
+        });
+    }
     function imgKey(p) { return String(p).split(/[\\/]/).pop().toLowerCase().replace(/\.[a-z0-9]+$/, ''); }
 
     // ---------- sliders ----------
+    /* Step sliders: one dot per tested level, evenly spaced, label centred under its dot. */
+    function stepPos(i, L) { return L < 2 ? 50 : i / (L - 1) * 100; }
     function buildSliders() {
         const ds = S.ds;
         $('pe-sliders').innerHTML = ds.inputs.map((inp, k) => {
             const L = inp.levels.length;
-            const step = L > 7 ? Math.ceil(L / 6) : 1;
-            const ticks = inp.levels.map((l, i) => (i % step === 0 || i === L - 1) ? `<span data-k="${k}" data-l="${i}" title="${esc(l.text)}">${esc(l.text)}</span>` : '<span></span>').join('');
+            const every = L > 7 ? Math.ceil(L / 6) : 1;           // label every n-th level when there are many
+            const maxW = L < 2 ? 100 : Math.max(8, 100 / (L - 1)); // label width (%) so neighbours never overlap
+            const dots = inp.levels.map((l, i) => `<span class="pe-step" data-l="${i}" style="left:${stepPos(i, L)}%" title="${esc(l.text)}"></span>`).join('');
+            const labels = inp.levels.map((l, i) => {
+                const edge = L > 1 && i === 0 ? ' first' : L > 1 && i === L - 1 ? ' last' : '';
+                const show = i % every === 0 || i === L - 1;
+                // a label owns half a step on each side of its dot (edge labels only have one side)
+                return `<span class="pe-step-label${edge}${show ? '' : ' minor'}" data-l="${i}" style="left:${stepPos(i, L)}%;max-width:calc(${edge ? maxW / 2 : maxW}% ${edge ? '+ 9px' : ''})" title="${esc(l.text)}">${esc(l.text)}</span>`;
+            }).join('');
             return `<div class="pe-slider">
-                <label for="pe-s${k}"><span>${esc(inp.label)}</span><b id="pe-sv${k}"></b></label>
-                <input type="range" id="pe-s${k}" min="0" max="${Math.max(0, L - 1)}" step="1" value="${S.sel[k]}" ${L < 2 ? 'disabled' : ''}>
-                <div class="pe-ticks" id="pe-st${k}">${ticks}</div></div>`;
+                <label id="pe-sl${k}"><span>${esc(inp.label)}</span><b id="pe-sv${k}"></b></label>
+                <div class="pe-steps${L < 2 ? ' disabled' : ''}" id="pe-s${k}" data-k="${k}" role="slider" tabindex="${L < 2 ? -1 : 0}"
+                    aria-labelledby="pe-sl${k}" aria-valuemin="0" aria-valuemax="${Math.max(0, L - 1)}">
+                    <div class="pe-steps-track"></div>${dots}
+                </div>
+                <div class="pe-step-labels" id="pe-st${k}">${labels}</div></div>`;
         }).join('');
         ds.inputs.forEach((inp, k) => {
-            $('pe-s' + k).addEventListener('input', e => { S.sel[k] = +e.target.value; updateSelection(); });
-        });
-        $('pe-sliders').querySelectorAll('.pe-ticks span[data-k]').forEach(sp => {
-            sp.onclick = () => { S.sel[+sp.dataset.k] = +sp.dataset.l; updateSelection(); };
+            const el = $('pe-s' + k), L = inp.levels.length;
+            if (L < 2) return;
+            const set = l => { l = Math.max(0, Math.min(L - 1, l)); if (l !== S.sel[k]) { S.sel[k] = l; updateSelection(); } };
+            const fromX = x => { const b = el.getBoundingClientRect(); return Math.round((x - b.left) / b.width * (L - 1)); };
+            el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); el.focus(); set(fromX(e.clientX)); e.preventDefault(); });
+            el.addEventListener('pointermove', e => { if (el.hasPointerCapture(e.pointerId)) set(fromX(e.clientX)); });
+            el.addEventListener('keydown', e => {
+                const m = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+                if (m) { set(S.sel[k] + m); e.preventDefault(); }
+                else if (e.key === 'Home') { set(0); e.preventDefault(); }
+                else if (e.key === 'End') { set(L - 1); e.preventDefault(); }
+            });
+            $('pe-st' + k).querySelectorAll('.pe-step-label').forEach(sp => { sp.onclick = () => set(+sp.dataset.l); });
         });
     }
     function syncSliders() {
         S.ds.inputs.forEach((inp, k) => {
-            $('pe-s' + k).value = S.sel[k];
-            $('pe-sv' + k).textContent = inp.levels[S.sel[k]].text + (inp.numeric && inp.unit && !/%$/.test(inp.levels[S.sel[k]].text) ? ' ' + inp.unit : '');
-            $('pe-st' + k).querySelectorAll('span[data-l]').forEach(sp => sp.classList.toggle('on', +sp.dataset.l === S.sel[k]));
+            const l = S.sel[k], text = inp.levels[l].text + (inp.numeric && inp.unit && !/%$/.test(inp.levels[l].text) ? ' ' + inp.unit : '');
+            const el = $('pe-s' + k);
+            el.setAttribute('aria-valuenow', l); el.setAttribute('aria-valuetext', text);
+            el.querySelectorAll('.pe-step').forEach(d => { const i = +d.dataset.l; d.classList.toggle('on', i === l); });
+            $('pe-sv' + k).textContent = text;
+            $('pe-st' + k).querySelectorAll('.pe-step-label').forEach(sp => sp.classList.toggle('on', +sp.dataset.l === l));
         });
     }
 
@@ -1597,25 +1854,23 @@ body.pe-dragover::after {
         const ctx = base.getContext('2d');
         ctx.clearRect(0, 0, L.W, L.H);
         const run = css('--pe-run'), grey = css('--pe-grey');
-        const alpha = Math.min(0.55, Math.max(0.035, 9 / Math.pow(ds.N, 0.62)));
+        // "Chart Line Opacity" in Color Settings scales the fade (0.5 = default).
+        const k = parseFloat(css('--chart-line-opacity')); const mult = isFinite(k) && k > 0 ? k / 0.5 : 1;
+        S.baseAlpha = Math.min(0.8, Math.max(0.05, Math.min(0.2, Math.max(0.1, 1.4 / Math.pow(ds.N, 0.35))) * mult));
+        // Lines are drawn opaque and the whole layer is faded. Per-line alpha does not work here: on discrete
+        // axes many runs share a segment, and Chrome's 1 px hairlines add up to near-solid colour.
+        base.style.opacity = S.baseAlpha;
         const anyBrush = Object.keys(S.brushes).length > 0;
         ctx.lineWidth = 1;
         if (anyBrush) {
-            ctx.strokeStyle = withAlpha(grey, Math.min(0.5, alpha * 1.2 + 0.05));
+            ctx.strokeStyle = grey;
             ctx.beginPath();
             for (let r = 0; r < ds.N; r++) if (!S.inFilter[r]) tracePath(ctx, r);
             ctx.stroke();
         }
-        // Stroke in small batches: overlap still builds density across batches, and big files stay fast.
-        const batch = ds.N > 600 ? 12 : 1;
-        ctx.strokeStyle = withAlpha(run, batch > 1 ? Math.min(0.6, alpha * 1.6) : alpha);
-        let n = 0;
+        ctx.strokeStyle = run;
         ctx.beginPath();
-        for (let r = 0; r < ds.N; r++) {
-            if (!S.inFilter[r]) continue;
-            tracePath(ctx, r);
-            if (++n % batch === 0) { ctx.stroke(); ctx.beginPath(); }
-        }
+        for (let r = 0; r < ds.N; r++) if (S.inFilter[r]) tracePath(ctx, r);
         ctx.stroke();
     }
 
@@ -1669,10 +1924,10 @@ body.pe-dragover::after {
             const a = L.axes[S.drag.a]; const y0 = Math.min(S.drag.y0, S.drag.y1), y1 = Math.max(S.drag.y0, S.drag.y1);
             ctx.fillStyle = withAlpha(accent, 0.25); ctx.fillRect(a.x - 8, y0, 16, y1 - y0);
         }
-        // neighbours (differ in exactly one input)
+        // neighbours (differ in exactly one input): off by default, switched on with "Show one-change runs"
         ctx.strokeStyle = withAlpha(near, 0.85); ctx.lineWidth = 1.6;
         ctx.beginPath();
-        S.ds.inputs.forEach((inp, k) => {
+        if (S.showNear) S.ds.inputs.forEach((inp, k) => {
             const c = S.sel.slice(); // fresh copy per input: only input k differs
             for (let l = 0; l < inp.levels.length; l++) {
                 if (l === S.sel[k]) continue;
@@ -1688,9 +1943,9 @@ body.pe-dragover::after {
         // selected
         const r = S.selRun;
         if (r >= 0) {
-            ctx.strokeStyle = bg; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+            ctx.strokeStyle = bg; ctx.lineWidth = 7; ctx.lineJoin = 'round';
             ctx.beginPath(); tracePath(ctx, r); ctx.stroke();
-            ctx.strokeStyle = sel; ctx.lineWidth = 3.2;
+            ctx.strokeStyle = sel; ctx.lineWidth = 3.6;
             ctx.beginPath(); tracePath(ctx, r); ctx.stroke();
             drawAxes(ctx);
             ctx.font = fontStr(11.5, 600); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
@@ -1950,6 +2205,49 @@ body.pe-dragover::after {
             $('pe-sens-foot').innerHTML = `Bars run from the lowest to the highest ${esc(o.label)} reachable by changing only that input. Bar ends are labelled with the level that produces them. Orange dot = current level. Tick marks = every tested level.`;
         }
     }
+
+    // ---------- export ----------
+    function download(canvas, name) {
+        const a = document.createElement('a'); a.download = name; a.href = canvas.toDataURL('image/png'); a.click();
+    }
+    function exportChart() {
+        if (!S.layout) return;
+        const dpr = window.devicePixelRatio || 1, c = document.createElement('canvas');
+        c.width = base.width; c.height = base.height;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = css('--bg-secondary') || '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.globalAlpha = S.baseAlpha || 1; ctx.drawImage(base, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(top, 0, 0);
+        download(c, 'parallel-coordinates.png');
+        void dpr;
+    }
+    function exportSens() {
+        const svg = $('pe-sens-chart').querySelector('svg'); if (!svg) return;
+        const w = +svg.getAttribute('width'), h = +svg.getAttribute('height'), scale = 2;
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('font-family', 'Inter, Helvetica Neue, Arial, sans-serif');
+        const img = new Image();
+        img.onload = () => {
+            const c = document.createElement('canvas'); c.width = w * scale; c.height = h * scale;
+            const ctx = c.getContext('2d'); ctx.fillStyle = css('--bg-secondary') || '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            download(c, `sensitivity-${S.mode}.png`);
+        };
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+    }
+    $('pe-export-pc').onclick = exportChart;
+    $('pe-show-near').onchange = e => { S.showNear = e.target.checked; $('pe-legend-near').classList.toggle('hidden', !S.showNear); drawTop(); };
+    $('pe-export-sens').onclick = exportSens;
+
+    // ---------- API for the combined page ----------
+    root.PEApp = {
+        load: loadText,
+        addImages,
+        clearFilters() { if (!S.ds) return; S.brushes = {}; computeFilter(); drawBase(); drawTop(); },
+        refresh() { if (S.ds) { layoutChart(); renderSensitivity(); } },
+        exportChart, exportSens,
+        get loaded() { return !!S.ds; }
+    };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
