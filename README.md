@@ -2,12 +2,14 @@
 
 Browser tool for exploring Colibri / Grasshopper energy simulation results.
 
-`index.html` is the full app. One CSV feeds two tabs:
+`index.html` is the full app. One page, one CSV, top to bottom:
 
-| Tab | What it does |
-|---|---|
-| **Parametric Explorer** | Step sliders, parallel coordinates, the selected run against a baseline, and global and local sensitivity |
-| **Overview** | The original views: Plotly parallel coordinates with highlight, scatter, distribution, the "which variables move the result" tornado, diminishing returns, data table and image gallery |
+1. **Parametric Explorer**: step sliders and parallel coordinates, the selected run against a baseline, and global and local sensitivity
+2. **Scatter plot**, with Color by, colour scheme and highlight lowest/highest; **Distribution** sits beside it
+3. **Diminishing returns** within each variable
+4. **Data table** and **Design Variants** gallery
+
+The old Plotly parallel coordinates and the old isolated-effects tornado were retired. The explorer's chart and its Global sensitivity replace them.
 
 `parametric.html` is the Parametric Explorer on its own. The single-file email version is built from it.
 
@@ -28,7 +30,7 @@ Send `dist/BBB_Parametric_Explorer.html`. The CSS and JS are inlined in it, so t
 ## Quick start (no install)
 
 1. Download the repository (Code → Download ZIP) and unzip it.
-2. Double-click `index.html` (full app; the Overview charts need internet for Plotly) or `parametric.html` (explorer only). It runs offline in Chrome, Edge, Firefox or Safari; it needs no server and no internet.
+2. Double-click `index.html` (full app; the scatter, distribution and returns charts need internet for Plotly) or `parametric.html` (explorer only). It runs offline in Chrome, Edge, Firefox or Safari; it needs no server and no internet.
 3. Drag your Colibri `data.csv` onto the page, or click **Load CSV**.
 4. Optional: click **Load Images** and select the screenshot files so the `img` column shows in the Selected Run panel.
 
