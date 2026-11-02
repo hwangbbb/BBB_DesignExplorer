@@ -35,7 +35,7 @@ console.log('Text input');
 const t = '﻿in:Option,in:WWR (%),out:EUI (kBtu/sf·yr),img\n' +
   'Option 2,20%,50,a.png\nOption 1,20%,40,b.png\nOption 2,40%,58,"c,1.png"\nOption 1,40%,48,d.png\n';
 ds = C.buildDataset(t);
-ok(!ds.inputs[0].numeric && ds.inputs[0].levels.map(x => x.text).join('/') === 'Option 2/Option 1', 'text levels in file order');
+ok(!ds.inputs[0].numeric && ds.inputs[0].levels.map(x => x.text).join('/') === 'Option 1/Option 2', 'numbered text levels sort by their number');
 ok(ds.inputs[1].numeric && ds.inputs[1].levels.map(x => x.value).join('/') === '20/40', '20%/40% parsed as numeric, sorted');
 g = C.globalSensitivity(ds, 0);
 ok(near(g[0].impact, 10) && ds.inputs[0].levels[g[0].best].text === 'Option 1', 'text input impact 10, best Option 1');
@@ -55,4 +55,28 @@ const dt = Date.now() - t0;
 ok(ds.N === 3000 && dt < 1500, `3000 runs parsed + global sensitivity in ${dt} ms`);
 t0 = Date.now(); for (let i = 0; i < 100; i++) C.localSensitivity(ds, 0, [i % 10, 1, 2, 1, 3]);
 ok(Date.now() - t0 < 200, `100 local sensitivities in ${Date.now() - t0} ms`);
+
+// 6. Plain text levels keep file order
+ds = C.buildDataset('in:Glazing,out:Y\nTriple,1\nDouble,2\nQuad,3\n');
+ok(ds.inputs[0].levels.map(x => x.text).join('/') === 'Triple/Double/Quad', 'plain text levels keep file order');
+
+// 7. Failed simulations (-999) are missing, not real values
+console.log('Failed runs and other file formats');
+const f = ['in:Wall,in:Roof,out:Gross_EUI,out:Heating_Load'];
+['R 20', 'R 30', 'R 40'].forEach((w, i) => ['R-30', 'R-50', 'R-70'].forEach((r, j) => f.push([w, r, 50 - 2 * i - j, 20 - i].join(','))));
+f[5] = 'R 30,R-50,-999,-999';
+ds = C.buildDataset(f.join('\n'));
+ok(ds.outputs[0].min === 44 && ds.outputs[0].max === 50, `-999 ignored for axis range (${ds.outputs[0].min}..${ds.outputs[0].max})`);
+ok(ds.failed.size === 1 && ds.failedCells === 2, 'failed run counted');
+ok(ds.inputs[0].levels.map(x => x.text).join('/') === 'R 20/R 30/R 40' && ds.inputs[1].levels.map(x => x.text).join('/') === 'R-30/R-50/R-70', 'R-values sorted by number, "R-30" not read as negative');
+g = C.globalSensitivity(ds, 0);
+ok(g.every(x => isFinite(x.impact)) && g[0].direction === 'lowers', 'sensitivity skips the failed run; R-value direction works');
+const nt = C.normalizeCSV(f.join('\n')).text;
+ok(!/-999/.test(nt) && nt.split('\n')[5] === 'R 30,R-50,,', 'normalised text blanks failure codes for the other charts');
+ds = C.buildDataset('in:A,out:Y,out:Note\n1,5,ok\n2,#DIV/0!,ok\n3,NaN,bad\n4,7,ok\n');
+ok(ds.outputs.length === 1 && ds.skippedOutputs[0] === 'Note' && isNaN(ds.outputs[0].values[1]) && isNaN(ds.outputs[0].values[2]), 'error text -> missing; text-only output skipped');
+
+// 8. Semicolon CSV with decimal commas (European Excel)
+ds = C.buildDataset('in:WWR (%);in:Glazing;out:EUI (kBtu/sf·yr)\n20;Double;54,7\n40;Double;58,2\n20;Triple;51,0\n40;Triple;"55,5"\n');
+ok(ds.inputs.length === 2 && ds.outputs[0].values[0] === 54.7 && ds.outputs[0].values[3] === 55.5, 'semicolon file with decimal commas');
 console.log(`\n${pass} checks passed`);

@@ -22,7 +22,10 @@
         // Every CSV the app reads (file picker, drop, sample, demo) also goes to the Parametric Explorer.
         const parse = app.dm.parseCSV.bind(app.dm);
         app.dm.parseCSV = function (text) {
-            const r = parse(text);
+            // Same cleaning for every chart: failure codes (-999) and error text become blanks,
+            // ;-separated files with decimal commas become plain CSV. The explorer cleans the original
+            // text itself so it can report what it found.
+            const r = parse(window.PECore ? window.PECore.normalizeCSV(text).text : text);
             if (window.PEApp) window.PEApp.load(text, name, demo);
             $('pe-demo-badge').classList.toggle('hidden', !demo);
             $('pe-file-name').textContent = demo ? 'Synthetic numbers, not a real study' : name;

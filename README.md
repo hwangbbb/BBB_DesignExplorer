@@ -71,6 +71,10 @@ Send `dist/BBB_Parametric_Explorer.html`. The CSS and JS are inlined in it, so t
   - Text levels keep the order they appear in the file.
 - `out:` columns are numeric outputs. Put units in parentheses, for example `out:EUI (kBtu/sf·yr)`; they are shown on every axis and value.
 - `img` is optional: a screenshot file name or path for each run.
+- Failed simulations are handled. EnergyPlus/Colibri failure codes (`-999`, `-9999`, `-99999`) and error text in outputs (`NaN`, `#DIV/0!`, `error`, ...) are treated as missing on every chart, not as real values. A "Data notes" line under the explorer says how many runs failed, and selecting one shows "Simulation failed".
+- Semicolon-separated files with decimal commas (European Excel) are read correctly.
+- Text levels that are one number with the same words around it (`R 20 / R 30 / R 40`, `U-0.45`, `Option 10`) sort by that number. Other text keeps file order.
+- Output columns that contain only text are not plotted.
 - Incomplete grids are fine. Combinations with no run show "No run with this combination", and the sensitivity charts report the groups they skipped.
 
 ## Tests

@@ -169,3 +169,6 @@ body.theme-architect { --pe-run: #78716c; --pe-near: #0f766e; }
 .pe-step-label.on { color: var(--pe-sel); font-weight: 600; visibility: visible; }
 .pe-check { cursor: pointer; gap: 6px; }
 .pe-check input { accent-color: var(--pe-sel); }
+
+.pe-notes { border-top: 0; padding-top: 0; font-size: 12px; color: var(--pe-bad); }
+.pe-notes b { font-weight: 600; }
