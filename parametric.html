@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parametric Explorer · BBB Design Explorer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=3">
+    <link rel="stylesheet" href="css/parametric.css?v=2">
+</head>
+
+<body>
+    <header id="app-header">
+        <div class="header-left">
+            <h1 id="main-title">BBB Design Explorer</h1>
+            <span class="header-subtitle">Parametric Explorer</span>
+            <span id="pe-demo-badge" class="pe-demo-badge hidden" title="Synthetic numbers for demonstration only">Demo data</span>
+            <span id="pe-file-name" class="pe-file-name"></span>
+        </div>
+        <div class="header-controls">
+            <div class="control-group">
+                <label for="pe-csv" class="btn btn-primary" title="Load a Colibri data.csv (or drop it anywhere on the page)">Load CSV</label>
+                <input type="file" id="pe-csv" accept=".csv,text/csv" hidden>
+                <label for="pe-imgs" class="btn btn-secondary" title="Pick the run screenshots so the img column can be shown">Load Images</label>
+                <input type="file" id="pe-imgs" accept="image/*" multiple hidden>
+                <button id="pe-demo" class="btn btn-outline" title="Load synthetic demo data (labelled Demo data)">Demo data</button>
+                <a href="index.html" class="btn btn-outline" title="Back to the overview page">Overview</a>
+                <button id="btn-color-panel" class="btn btn-outline" data-panel-open="color-panel" title="Color settings">Colors</button>
+                <button id="btn-theme" class="btn btn-outline" title="Toggle light / dark theme">Dark</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="app-main">
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-zone-inner" id="pe-drop">
+                <h2>Drop a Colibri data.csv here</h2>
+                <p>or click to browse files</p>
+                <p class="upload-hint">Columns starting with <code>in:</code> are inputs, <code>out:</code> are outputs,
+                    and an optional <code>img</code> column holds a screenshot per run.</p>
+                <p class="upload-hint">No file at hand? Use <b>Demo data</b> in the top bar (synthetic numbers, clearly labelled).</p>
+            </div>
+        </div>
+
+        <div id="viz-container" class="hidden">
+            <div id="pe-root"></div>
+        </div>
+    </main>
+
+    <!-- COLOR SETTINGS -->
+    <div id="color-panel" class="side-panel">
+        <div class="side-panel-header">
+            <h3>Color Settings</h3>
+            <button class="btn btn-icon btn-icon-sm" data-panel-close title="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+        </div>
+        <div class="side-panel-body">
+            <h4 class="setting-section-title">Preset Themes</h4>
+            <div class="theme-presets">
+                <button class="theme-btn" data-theme="light"><span class="theme-preview" style="background:linear-gradient(135deg,#ffffff,#e4e4e4)"></span>Light</button>
+                <button class="theme-btn" data-theme="dark"><span class="theme-preview" style="background:linear-gradient(135deg,#262626,#0e0e0e)"></span>Dark</button>
+                <button class="theme-btn" data-theme="ocean"><span class="theme-preview" style="background:linear-gradient(135deg,#0c4a6e,#164e63)"></span>Ocean</button>
+                <button class="theme-btn" data-theme="forest"><span class="theme-preview" style="background:linear-gradient(135deg,#14532d,#1e3a2f)"></span>Forest</button>
+                <button class="theme-btn" data-theme="sunset"><span class="theme-preview" style="background:linear-gradient(135deg,#7c2d12,#78350f)"></span>Sunset</button>
+                <button class="theme-btn" data-theme="architect"><span class="theme-preview" style="background:linear-gradient(135deg,#fafaf9,#d6d3d1)"></span>Architect</button>
+            </div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Parametric Explorer</h4>
+            <div class="setting-group"><label class="setting-label">Selected run</label><input type="color" data-color-var="--pe-sel" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Differs in one input</label><input type="color" data-color-var="--pe-near" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Run lines</label><input type="color" data-color-var="--pe-run --chart-line-color" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Filtered-out lines</label><input type="color" data-color-var="--pe-grey" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Line density</label><input type="range" min="0.1" max="1" step="0.05" value="0.5" data-color-var-range="--chart-line-opacity" class="range-input"></div>
+            <hr class="setting-divider">
+            <h4 class="setting-section-title">Page</h4>
+            <div class="setting-group"><label class="setting-label">Background</label><input type="color" data-color-var="--bg-primary --bg-secondary --bg-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Text</label><input type="color" data-color-var="--text-primary --text-header" class="color-input"></div>
+            <div class="setting-group"><label class="setting-label">Accent</label><input type="color" data-color-var="--accent" class="color-input"></div>
+            <button id="btn-reset-colors" class="btn btn-sm btn-outline" style="width:100%;justify-content:center;margin-top:8px">Reset colors to theme</button>
+        </div>
+    </div>
+    <div id="panel-overlay" class="panel-overlay hidden"></div>
+
+    <script src="js/theme.js?v=1"></script>
+    <script src="js/parametric.js?v=2"></script>
+</body>
+
+</html>
