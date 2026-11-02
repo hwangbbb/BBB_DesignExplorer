@@ -15,6 +15,15 @@ The old Plotly parallel coordinates and the old isolated-effects tornado were re
 
 ### Colors and themes
 
+Every chart on the page uses one palette, defined in `js/theme.js` (`BBBTheme.palette()`):
+- **Blue (run color):** every run, bar and line that is just data. This covers explorer lines, Global sensitivity bars, distribution bars and diminishing-returns lines. Scatter **Color by** uses a blue sequential scale built from the same color.
+- **Orange:** only ever the selected run. It is the line in the explorer, the large dot on the scatter, and the vertical line on the distribution.
+- **Teal:** "change one input". It covers one-change runs and the Local sensitivity tornado.
+- **Grey:** filtered out or minor.
+
+Scatter **Scheme** defaults to *BBB (matches explorer)*. The other color scales are still available.
+
+
 **Color Settings** (the half-filled circle icon, or **Colors** on `parametric.html`) has:
 - six preset themes
 - page background, header, text and accent colors

@@ -496,6 +496,16 @@
         drawTop();
         renderRunPanel();
         if (S.mode === 'local') renderSensitivity();
+        announceSelection();
+    }
+    /* Tell the rest of the page (scatter, distribution) which run is selected, so it can be marked in orange there too. */
+    function announceSelection() {
+        const ds = S.ds, r = S.selRun;
+        const detail = r < 0 ? null : {
+            inputs: ds.inputs.map(inp => { const l = inp.levels[inp.codes[r]]; return { col: inp.col, numeric: inp.numeric, value: l.value, text: l.text }; }),
+            outputs: ds.outputs.map(o => ({ col: o.col, value: o.values[r] }))
+        };
+        document.dispatchEvent(new CustomEvent('pe-select', { detail }));
     }
 
     // ---------- filter ----------

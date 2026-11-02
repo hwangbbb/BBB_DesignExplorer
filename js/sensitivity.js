@@ -58,12 +58,14 @@
   // ---------- palette (follows the page's accent when available) ----------
   // Theme tokens are read from <body> so the built-in themes (dark, ocean, ...) flow into the charts.
   function tok(name, fb) { const v = getComputedStyle(document.body).getPropertyValue(name).trim(); return v || fb; }
-  function accent() { return tok('--accent', '#2457c5'); }
+  // Same palette as the Parametric Explorer (js/theme.js): run blue for strong effects, a lighter
+  // blue for moderate, grey for minor. Orange stays reserved for the selected run.
+  function pal() { return window.BBBTheme && window.BBBTheme.palette ? window.BBBTheme.palette() : { run: tok('--pe-run', '#5b7fbf'), runMid: '#a6b8dc', grey: tok('--pe-grey', '#b9b9b9'), ink: tok('--text-primary', '#0e0e0e') }; }
   function colorFor(span, maxSpan) {
-    const t = maxSpan ? span / maxSpan : 0;
-    if (t > 0.6) return accent();
-    if (t > 0.2) return tok('--chart-mid', '#7f9bd6');
-    return tok('--chart-low', '#c9c9c9');
+    const t = maxSpan ? span / maxSpan : 0, P = pal();
+    if (t > 0.6) return P.run;
+    if (t > 0.2) return P.runMid;
+    return P.grey;
   }
   const baseLayout = () => ({
     font: { family: 'Inter, "Helvetica Neue", Helvetica, Arial, sans-serif', size: 12, color: tok('--text-primary', '#0e0e0e') },
@@ -271,7 +273,7 @@
     Plotly.addTraces(gd, {
       name: '__highlight__', type: 'scatter', mode: 'markers', showlegend: false, hoverinfo: 'skip',
       x: rows.map(r => dm.getNumericValue(r, xs)), y: rows.map(r => dm.getNumericValue(r, ys)),
-      marker: { symbol: 'circle-open', size: 22, color: accent(), line: { width: 3 } }
+      marker: { symbol: 'circle-open', size: 20, color: pal().ink, line: { width: 2.5 } }   // ink ring: orange is the selected run
     });
     Plotly.relayout(gd, { showlegend: false });
   }
@@ -353,8 +355,7 @@
       if (document.getElementById('tornado-chart')?.data) setTimeout(() => png('tornado-chart', 'tornado_isolated_effects'), 2600);
       if (document.getElementById('returns-chart')?.data) setTimeout(() => png('returns-chart', 'diminishing_returns'), 3400);
     });
-    // re-theme when accent colour changes
-    document.getElementById('accent-color')?.addEventListener('input', () => { if (S.rows) render(S.rows, { inputs: S.inputs, outputs: S.outputs, customLabels: S.labels, customTickLabels: S.ticks }); });
+    // colours follow js/theme.js: combined.js re-renders on 'bbb-themechange'
   }
   // app.js instantiates window.designExplorer inside a window 'DOMContentLoaded' listener; document-level
   // listeners fire earlier, so register on window too and retry briefly if the app is still booting.

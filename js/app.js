@@ -36,7 +36,14 @@
     };
 
     /* Return an explicit colorscale array for any named or custom scale */
+    /* Shared page palette (js/theme.js), with a fallback when theme.js is absent. */
+    function pagePalette() {
+        if (window.BBBTheme && window.BBBTheme.palette) return window.BBBTheme.palette();
+        return { run: '#5b7fbf', sel: '#e8710a', near: '#12a39a', grey: '#b9b9b9', bg: '#ffffff', ink: '#0e0e0e',
+            runMid: '#a6b8dc', seq: [[0, '#d6deee'], [0.5, '#5b7fbf'], [1, '#283a5e']] };
+    }
     function resolveColorscale(scale) {
+        if (scale === 'BBB' || !scale) return pagePalette().seq;   // default: matches the Parametric Explorer
         if (Array.isArray(scale)) return scale;          // already an array (custom HSB)
         return COLORSCALES[scale] || scale;              // lookup or pass name as-is
     }
@@ -397,15 +404,15 @@
             type: 'scatter',
             marker: {
                 size: sizeValues || markerSize,
-                color: colorValues || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
-                colorscale: options.colorScale || 'Viridis',
+                color: colorValues || pagePalette().run,
+                colorscale: resolveColorscale(options.colorScale),
                 showscale: !!colorValues,
                 colorbar: colorValues ? {
                     title: { text: cleanLabel(colorCol) },
                     thickness: 12
                 } : undefined,
-                opacity: 0.85,
-                line: { width: 1, color: 'rgba(0,0,0,0.15)' }
+                opacity: 0.9,
+                line: { width: 0.75, color: pagePalette().bg }
             },
             text: hoverText,
             hovertemplate: '%{text}<extra></extra>'
@@ -469,7 +476,10 @@
 
         const values = dm.getColumnValues(col);
         const cats = dm.getCategories(col);
-        const colorScale = options.colorScale || 'Viridis';
+        // Default scheme: plain bars in the run colour (same blue as the explorer). Other schemes keep the gradient.
+        const P = pagePalette();
+        const plain = !options.colorScale || options.colorScale === 'BBB';
+        const colorScale = resolveColorscale(options.colorScale);
 
         const isDark = document.body.classList.contains('theme-dark') ||
             document.body.classList.contains('theme-ocean') ||
@@ -494,7 +504,7 @@
                 x: keys,
                 y: vals,
                 type: 'bar',
-                marker: {
+                marker: plain ? { color: P.run, opacity: 0.85 } : {
                     color: barColors,
                     colorscale: colorScale,
                     opacity: 0.9
@@ -524,7 +534,7 @@
                 y: bins,
                 type: 'bar',
                 width: binWidth * 0.9,
-                marker: {
+                marker: plain ? { color: P.run, opacity: 0.85 } : {
                     color: barColors,
                     colorscale: colorScale,
                     opacity: 0.9
@@ -879,7 +889,7 @@
             this.customLabels = {};
             this.customTickLabels = {};
             this.settings = {
-                colorScale: 'Viridis',
+                colorScale: 'BBB',
                 colorDimension: null,
                 scatterX: null,
                 scatterY: null,
