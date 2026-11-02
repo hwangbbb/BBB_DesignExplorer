@@ -7,6 +7,10 @@ Browser tool for exploring Colibri / Grasshopper energy simulation results.
 | `index.html` | Overview: Plotly parallel coordinates, scatter, distribution, table, image gallery |
 | `parametric.html` | **Parametric Explorer**: level sliders, selected run vs baseline, global and local sensitivity |
 
+## Share by email (one file)
+
+Send `dist/BBB_Parametric_Explorer.html`. The CSS and JS are inlined in it, so the recipient double-clicks it and it opens in their browser, offline. After changing the source, rebuild it with `python tools/build-standalone.py`.
+
 ## Quick start (no install)
 
 1. Download the repository (Code → Download ZIP) and unzip it.
