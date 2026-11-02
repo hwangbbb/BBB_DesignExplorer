@@ -109,5 +109,31 @@
     applyColors();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 
-    window.BBBTheme = { setTheme, setColor, clearColors, isDark, get theme() { return theme; }, get colors() { return Object.assign({}, colors); }, syncInputs };
+    /* ---------- shared chart palette ----------
+       Every chart on the page (canvas explorer and Plotly charts) takes its colours from here,
+       so one change in Color Settings or the theme recolours everything the same way:
+         run  : every run / bar / line that is "just data"
+         sel  : the selected run (orange) - only ever used for the selection
+         near : runs or bars that change one input (teal)
+         grey : filtered out / minor
+         seq  : sequential scale for "Color by", built from the run colour (no orange, so the
+                selection always stands out)                                                      */
+    function hexToRgb(h) { h = toHex(h) || '#888888'; const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    function mix(a, b, t) { const x = hexToRgb(a), y = hexToRgb(b); return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
+    function palette() {
+        const cs = getComputedStyle(document.body);
+        const get = (n, fb) => (cs.getPropertyValue(n).trim() || fb);
+        const run = toHex(get('--pe-run', '#5b7fbf')) || '#5b7fbf', bg = toHex(get('--bg-secondary', '#ffffff')) || '#ffffff', ink = toHex(get('--text-primary', '#0e0e0e')) || '#0e0e0e';
+        const p = {
+            run, bg, ink,
+            sel: get('--pe-sel', '#e8710a'), near: get('--pe-near', '#12a39a'), grey: get('--pe-grey', '#b9b9b9'),
+            muted: get('--text-muted', '#8a8a8a'), border: get('--border', '#e4e4e4'),
+            runMid: mix(run, bg, 0.45),
+            mix
+        };
+        p.seq = [[0, mix(bg, run, 0.22)], [0.5, run], [1, mix(run, ink, 0.6)]];
+        return p;
+    }
+
+    window.BBBTheme = { setTheme, setColor, clearColors, isDark, palette, get theme() { return theme; }, get colors() { return Object.assign({}, colors); }, syncInputs };
 })();
