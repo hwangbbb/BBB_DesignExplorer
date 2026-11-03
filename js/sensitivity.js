@@ -133,75 +133,179 @@
     return { xv, ys, numeric, steps, knee, linear };
   }
 
-  function drawReturns(eff, unit) {
-    const el = document.getElementById('returns-chart'); if (!el) return;
-    const n = eff.length, maxSpan = eff[0]?.span || 1;
-    const ink = tok('--text-primary', '#0e0e0e'), ink2 = tok('--text-secondary', '#4b4b4b'),
-      muted = tok('--text-muted', '#8a8a8a'), line = tok('--border', '#e4e4e4'), bg = tok('--bg-secondary', '#ffffff');
-    const traces = [], ann = [], shapes = [];
-    const minY = Math.min(...eff.map(e => -e.span)) * 1.25 - 0.15;
-    eff.forEach((e, i) => {
-      const ax = i === 0 ? '' : String(i + 1);
-      const st = e._st = stepStats(e);
-      const xs = st.numeric ? st.xv : e.ordered, ys = st.ys;
-      const col = colorFor(e.span, maxSpan);
-      traces.push({
-        type: 'scatter', mode: 'lines+markers', x: xs, y: ys, xaxis: 'x' + ax, yaxis: 'y' + ax,
-        text: e.ordered,
-        line: { color: col, width: 2, shape: st.numeric ? 'linear' : 'spline', smoothing: 0.6 }, marker: { size: 9, color: col, line: { color: bg, width: 2 } },
-        hovertemplate: `${e.name}: %{text}<br>Δ ${unit} vs worst: %{y:.2f}<extra></extra>`, showlegend: false
-      });
-      // marginal step labels between points: step change, plus gain per unit for numeric inputs
-      st.steps.forEach(s => {
-        const k = s.k, step = ys[k] - ys[k - 1];
-        const x = st.numeric ? (xs[k] + xs[k - 1]) / 2 : k - 0.5;
-        const small = Math.abs(step) < 0.02 * maxSpan;
-        ann.push({ xref: 'x' + ax, yref: 'y' + ax, x, y: (ys[k] + ys[k - 1]) / 2,
-          text: (step >= 0 ? '+' : '') + fmtN(step), showarrow: false,
-          font: { size: 10.5, color: small ? muted : ink }, bgcolor: bg, opacity: 0.92, borderpad: 2 });
-      });
-      if (st.knee !== null) {
-        const kx = st.numeric ? st.xv[e.ordered.indexOf(st.knee)] : e.ordered.indexOf(st.knee);
-        shapes.push({ type: 'line', xref: 'x' + ax, yref: 'y' + ax + ' domain', x0: kx, x1: kx, y0: 0, y1: 1, line: { color: ink, width: 1, dash: 'dot' } });
-        ann.push({ xref: 'x' + ax, yref: 'y' + ax + ' domain', x: kx, y: 0.02, xanchor: 'left', yanchor: 'bottom', text: ' knee', showarrow: false, font: { size: 10.5, color: ink } });
-      }
-      // subplot title
-      ann.push({ xref: 'x' + ax + ' domain', yref: 'y' + ax + ' domain', x: 0, y: 1.14, xanchor: 'left', text: `${e.name}  <span style="color:${muted}">span ${fmtN(e.span)}</span>`, showarrow: false, font: { size: 12.5, color: ink } });
-      // zero line
-      shapes.push({ type: 'line', xref: 'x' + ax + ' domain', yref: 'y' + ax, x0: 0, x1: 1, y0: 0, y1: 0, line: { color: line, width: 1, dash: 'dot' } });
-    });
-    const layout = Object.assign(baseLayout(), {
-      grid: { rows: 1, columns: n, pattern: 'independent', xgap: 0.08 },
-      margin: { l: 56, r: 16, t: 44, b: 44 }, annotations: ann, shapes,
-      height: 320
-    });
-    eff.forEach((e, i) => {
-      const ax = i === 0 ? '' : String(i + 1), st = e._st;
+  // ---------- figure renderer: publication style (Nature figure guidelines) ----------
+  // Small multiples drawn as plain SVG so the export is true vector:
+  //   Arial/Helvetica, 5-7 pt type at print size, 0.5-0.75 pt lines, open axes with outward ticks,
+  //   no gridlines, bold lowercase panel letters, one shared y-scale so panels compare directly.
+  const MM = 72 / 25.4;                                   // points per millimetre
+  const WIDTHS = { single: 89, mid: 120, double: 183 };   // Nature column widths (mm)
+  const FONT = 'Arial, Helvetica, "Helvetica Neue", sans-serif';
+  const xmlEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const tw = (s, fs) => String(s).length * fs * 0.55;     // text width estimate for Arial
+  function fit(s, fs, w) { s = String(s); if (tw(s, fs) <= w) return s; let t = s; while (t.length > 1 && tw(t + '…', fs) > w) t = t.slice(0, -1); return t + '…'; }
+  function wrap2(s, fs, w) {                               // up to two lines, then ellipsis
+    s = String(s); if (tw(s, fs) <= w) return [s];
+    const words = s.split(/\s+/); let a = '';
+    while (words.length && tw((a ? a + ' ' : '') + words[0], fs) <= w) a = (a ? a + ' ' : '') + words.shift();
+    if (!a) return [fit(s, fs, w)];
+    return [a, fit(words.join(' '), fs, w)].filter(Boolean);
+  }
+  function niceTicks(lo, hi, count) {
+    if (!(hi > lo)) return [lo];
+    const step0 = (hi - lo) / Math.max(1, count - 1), mag = Math.pow(10, Math.floor(Math.log10(step0))), err = step0 / mag;
+    const step = (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1) * mag, out = [];
+    for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(+v.toPrecision(12));
+    return out;
+  }
+  const tickFmt = (v, step) => { const d = step >= 1 ? 0 : step >= 0.1 ? 1 : 2; return (v < 0 ? '−' : '') + Math.abs(v).toFixed(d); };
+  const signFmt = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmtN(Math.abs(v));
+
+  /* eff: paired effects; o: { W, print, cols } -> { svg, W, H } (units: px on screen, pt when print) */
+  function returnsFigure(eff, unit, outName, o) {
+    const print = !!o.print;
+    const P = print ? { run: '#3f63a8', runMid: '#7d97cc', grey: '#9e9e9e', ink: '#000000', muted: '#4d4d4d', faint: '#8c8c8c', bg: '#ffffff' }
+      : (() => { const p = pal(); return { run: p.run, runMid: p.runMid, grey: p.grey, ink: tok('--text-primary', '#0e0e0e'), muted: tok('--text-muted', '#8a8a8a'), faint: tok('--border-strong', '#c9c9c9'), bg: tok('--bg-secondary', '#ffffff') }; })();
+    const f = print ? { tick: 6, label: 7, title: 7, letter: 8, step: 5.5, lw: 0.75, axis: 0.5, r: 2.1, tick_len: 2.5 }
+      : { tick: 11, label: 12, title: 12.5, letter: 13, step: 10, lw: 1.6, axis: 1, r: 4, tick_len: 4 };
+    const vars = eff.filter(e => e.ordered.length > 1);
+    if (!vars.length) return null;
+    const W = o.W, n = vars.length;
+    const maxCols = o.cols || Math.max(1, Math.min(n, Math.floor(W / (print ? 120 : 250))));
+    const rows = Math.ceil(n / maxCols), cols = Math.ceil(n / rows);
+    const maxSpan = Math.max(...vars.map(e => e.span), 1e-9);
+    vars.forEach(e => { e._st = stepStats(e); });
+    // shared y range (Δ vs worst level; ≤ 0 means the output drops = improves for energy)
+    let yLo = Math.min(0, ...vars.flatMap(e => e._st.ys)), yHi = Math.max(0, ...vars.flatMap(e => e._st.ys));
+    const yt = niceTicks(yLo, yHi, 4), ystep = yt.length > 1 ? yt[1] - yt[0] : 1;
+    yLo = Math.min(yLo, yt[0]); yHi = Math.max(yHi, yt[yt.length - 1]);
+    const yPad = (yHi - yLo) * 0.06; yHi += yPad; yLo -= yPad * 0.3;
+    const yLabW = Math.max(...yt.map(v => tw(tickFmt(v, ystep), f.tick))) + f.tick_len + 3;
+    const mL = f.label * 1.8 + yLabW, mR = print ? 4 : 8, gapX = print ? 12 : 26;
+    const pw = (W - mL - mR - gapX * (cols - 1)) / cols;
+    const ph = Math.max(print ? 52 : 120, Math.min(print ? 90 : 210, pw * 0.62));
+    const titleH = f.title * 1.25 + f.tick * 1.9, xlabH = f.tick * 3.6, rowGap = print ? 6 : 14;
+    const rowH = titleH + ph + xlabH + rowGap;
+    const H = rows * rowH + (print ? 2 : 4);
+    const out = [];
+    const T = (x, y, s, fs, opt = {}) => out.push(`<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${fs}"${opt.anchor ? ` text-anchor="${opt.anchor}"` : ''}${opt.weight ? ` font-weight="${opt.weight}"` : ''}${opt.style ? ` font-style="${opt.style}"` : ''} fill="${opt.fill || P.ink}"${opt.extra || ''}>${xmlEsc(s)}</text>`);
+    const Lp = (x1, y1, x2, y2, stroke, w, dash) => out.push(`<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${stroke}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`);
+    if (print) out.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
+    const yOf = (v, y0) => y0 + ph - (v - yLo) / (yHi - yLo) * ph;
+    vars.forEach((e, i) => {
+      const st = e._st, col = i % cols, row = Math.floor(i / cols);
+      const x0 = mL + col * (pw + gapX), y0 = row * rowH + titleH;
+      const color = (() => { const t = e.span / maxSpan; return t > 0.6 ? P.run : t > 0.2 ? P.runMid : P.grey; })();
+      const L = e.ordered.length;
+      let xOf;
       if (st.numeric) {
-        const lo = Math.min(...st.xv), hi = Math.max(...st.xv), pad = (hi - lo) * 0.08;
-        layout['xaxis' + ax] = { type: 'linear', tickvals: st.xv, ticktext: e.ordered,
-          range: st.numeric && e._reversed ? [hi + pad, lo - pad] : [lo - pad, hi + pad],
-          tickfont: { size: 11, color: ink2 }, showgrid: false, zeroline: false, fixedrange: true };
-      } else {
-        layout['xaxis' + ax] = { type: 'category', categoryorder: 'array', categoryarray: e.ordered, tickfont: { size: 11, color: ink2 }, showgrid: false, zeroline: false, fixedrange: true };
+        const lo = Math.min(...st.xv), hi = Math.max(...st.xv), pad = (hi - lo) * 0.1 || 1;
+        const a = e._reversed ? hi + pad : lo - pad, b = e._reversed ? lo - pad : hi + pad;
+        xOf = k => x0 + (st.xv[k] - a) / (b - a) * pw;
+      } else xOf = k => x0 + pw * (0.1 + 0.8 * (L === 1 ? 0.5 : k / (L - 1)));
+      // panel letter in the margin, title aligned with the axis, statistics on the line below
+      const letter = String.fromCharCode(97 + i), ty = y0 - titleH + f.title;
+      T(col === 0 ? f.label * 1.75 : x0 - gapX + 1, ty, letter, f.letter, { weight: 700 });   // col 0: just right of the y-axis title
+      T(x0, ty, fit(e.name, f.title, pw), f.title, { weight: 600 });
+      T(x0, ty + f.tick * 1.35, `Δ = ${fmtN(e.span)}${unit ? ' ' + unit : ''} · n = ${e.pairs} pairs`, f.tick, { fill: P.muted });
+      // axes: open box (left + bottom), outward ticks
+      Lp(x0, y0, x0, y0 + ph, P.ink, f.axis); Lp(x0, y0 + ph, x0 + pw, y0 + ph, P.ink, f.axis);
+      yt.forEach(v => {
+        const y = yOf(v, y0); if (y < y0 - 0.5 || y > y0 + ph + 0.5) return;
+        Lp(x0 - f.tick_len, y, x0, y, P.ink, f.axis);
+        if (col === 0) T(x0 - f.tick_len - 2, y + f.tick * 0.35, tickFmt(v, ystep), f.tick, { anchor: 'end' });
+      });
+      if (yLo < 0 && yHi > 0) Lp(x0, yOf(0, y0), x0 + pw, yOf(0, y0), P.faint, f.axis, print ? '1.5 1.5' : '3 3');
+      // x ticks and level labels (worst → best)
+      const slot = pw / Math.max(1, L) * (st.numeric ? 1.6 : 1.15);
+      e.ordered.forEach((lab, k) => {
+        const x = xOf(k);
+        Lp(x, y0 + ph, x, y0 + ph + f.tick_len, P.ink, f.axis);
+        wrap2(lab, f.tick, Math.max(slot, f.tick * 3)).forEach((ln, j) => {
+          const half = tw(ln, f.tick) / 2, cx = Math.max(half + 1, Math.min(W - half - 1, x));   // never past the figure edge
+          T(cx, y0 + ph + f.tick_len + f.tick * (1.05 + j * 1.15), ln, f.tick, { anchor: 'middle' });
+        });
+      });
+      // knee: dashed line; the label goes on the side of the panel away from the data
+      if (st.knee !== null) {
+        const kk = e.ordered.indexOf(st.knee), kx = xOf(kk), ky = yOf(st.ys[kk], y0);
+        Lp(kx, y0, kx, y0 + ph, P.muted, f.axis, print ? '2 1.5' : '4 3');
+        T(kx + 2, ky < y0 + ph / 2 ? y0 + ph - 3 : y0 + f.step + 1, 'knee', f.step, { style: 'italic', fill: P.muted });
       }
-      layout['yaxis' + ax] = { range: [minY, Math.max(0.35, -minY * 0.08)], gridcolor: line, zeroline: false, fixedrange: true,
-        showticklabels: i === 0, tickfont: { size: 10.5, color: ink2 }, title: i === 0 ? { text: `Δ ${unit} vs worst level`, font: { size: 11, color: muted } } : undefined };
+      // data: line, markers, step change at each segment
+      const pts = st.ys.map((v, k) => [xOf(k), yOf(v, y0)]);
+      out.push(`<polyline points="${pts.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ')}" fill="none" stroke="${color}" stroke-width="${f.lw}" stroke-linejoin="round" stroke-linecap="round"/>`);
+      // step change: offset perpendicular to the segment (above it), with a halo so lines never cut the number
+      st.steps.forEach(s => {
+        const k = s.k, step = st.ys[k] - st.ys[k - 1];
+        const dx = pts[k][0] - pts[k - 1][0], dy = pts[k][1] - pts[k - 1][1], len = Math.hypot(dx, dy) || 1;
+        // below the segment: a descending curve leaves that side empty, and it keeps clear of the zero line
+        let nx = dy / len, ny = -dx / len; if (ny < 0) { nx = -nx; ny = -ny; }
+        const off = f.step * 0.9;
+        const mx = (pts[k][0] + pts[k - 1][0]) / 2 + nx * off, my = (pts[k][1] + pts[k - 1][1]) / 2 + ny * off + f.step * 0.55;
+        const small = Math.abs(step) < 0.02 * maxSpan;
+        T(mx, my, signFmt(step), f.step, { anchor: 'middle', fill: small ? P.faint : P.muted,
+          extra: ` stroke="${P.bg}" stroke-width="${print ? 1.6 : 3}" stroke-linejoin="round" paint-order="stroke"` });
+      });
+      pts.forEach((p, k) => out.push(`<circle cx="${p[0].toFixed(2)}" cy="${p[1].toFixed(2)}" r="${f.r}" fill="${color}" stroke="${P.bg}" stroke-width="${f.axis}"><title>${xmlEsc(`${e.name}: ${e.ordered[k]}  Δ ${signFmt(st.ys[k])}${unit ? ' ' + unit : ''} vs worst level`)}</title></circle>`));
     });
-    Plotly.react(el, traces, layout, cfg);
-    const expl = document.getElementById('returns-explain');
-    if (expl) {
-      const notes = eff.filter(e => e.ordered.length > 2).map(e => {
-        const st = e._st, per = st.numeric ? 'per unit' : 'per step';
-        const g = st.steps.map(s => fmtN(s.perUnit)).join(', ');
-        if (st.knee !== null) return `${e.name}: knee at ${st.knee} (gain ${per}: ${g})`;
-        if (st.linear) return `${e.name}: close to linear, no knee (gain ${per}: ${g})`;
-        return null;
-      }).filter(Boolean);
-      expl.innerHTML = `Levels run left → right from worst to best; the number on each segment is the change from that single step. `
-        + `Numeric inputs are drawn to scale and judged on gain per unit of input, so uneven level spacing does not fake a knee. `
-        + `A knee is where gain per unit falls below half of the previous step. ` + (notes.length ? notes.join('; ') + '.' : '');
+    // one y-axis title for the whole figure (panels share the scale)
+    {
+      const cy = (rows * rowH - rowGap) / 2 + titleH / 2, tx = f.label * 0.95;
+      const yTitle = `Δ ${outName} relative to worst level${unit ? ` (${unit})` : ''}`;
+      T(tx, cy, fit(yTitle, f.label, rows * rowH - rowGap), f.label, { anchor: 'middle', extra: ` transform="rotate(-90 ${tx.toFixed(2)} ${cy.toFixed(2)})"` });
     }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W.toFixed(2)} ${H.toFixed(2)}" ${print ? `width="${(W / MM).toFixed(1)}mm" height="${(H / MM).toFixed(1)}mm"` : `width="${W}" height="${H.toFixed(0)}"`} font-family='${FONT}' role="img" aria-label="Diminishing returns within each variable">${out.join('')}</svg>`;
+    return { svg, W, H, vars };
+  }
+
+  function returnsCaption(vars, unit, outName) {
+    const notes = vars.filter(e => e.ordered.length > 2).map(e => {
+      const st = e._st, per = st.numeric ? 'per unit' : 'per step';
+      if (st.knee !== null) return `${e.name} shows a knee at ${st.knee}`;
+      if (st.linear) return `${e.name} is close to linear (gain ${per}: ${st.steps.map(s => fmtN(s.perUnit)).join(', ')})`;
+      return null;
+    }).filter(Boolean);
+    return `Diminishing returns within each design variable. Each panel shows the mean change in ${outName}${unit ? ` (${unit})` : ''} `
+      + `relative to the worst-performing level of that variable, from paired comparisons in which all other variables are held at each tested combination `
+      + `(n = number of pairs). Levels are ordered from worst (left) to best (right); numbers on the segments give the change for each step. `
+      + `Numeric variables are plotted to scale. Dashed lines mark a knee, where the gain per unit falls below half that of the previous step. `
+      + `Δ is the total span from worst to best level. Panels share one y-axis.` + (notes.length ? ' ' + notes.join('; ') + '.' : '');
+  }
+
+  function drawReturns(eff, unit, outName) {
+    const el = document.getElementById('returns-chart'); if (!el) return;
+    if (window.Plotly && el.data) { try { Plotly.purge(el); } catch (e) { /* not a Plotly chart any more */ } }
+    const W = Math.max(320, (el.clientWidth || 940) - 40);   // minus the container's side padding
+    const fig = returnsFigure(eff, unit, outName, { W });
+    S.fig = { eff, unit, outName };
+    if (!fig) { el.innerHTML = '<p class="setting-hint">Every input has a single tested level, so there is nothing to compare.</p>'; return; }
+    el.innerHTML = fig.svg;
+    const expl = document.getElementById('returns-explain');
+    if (expl) expl.textContent = returnsCaption(fig.vars, unit, outName);
+  }
+
+  /* Export: format 'svg' | 'png300' | 'png600'; width 'single' | 'mid' | 'double' (mm presets) */
+  function exportReturns(format, width) {
+    if (!S.fig) return;
+    format = format || document.getElementById('returns-format')?.value || 'svg';
+    width = width || document.getElementById('returns-width')?.value || 'double';
+    const mm = WIDTHS[width] || WIDTHS.double, Wpt = mm * MM;
+    const cols = width === 'single' ? 2 : width === 'mid' ? 3 : 4;
+    const fig = returnsFigure(S.fig.eff, S.fig.unit, S.fig.outName, { W: Wpt, print: true, cols });
+    if (!fig) return;
+    const name = `diminishing-returns-${String(S.fig.outName).replace(/[^\w.-]+/g, '_')}-${mm}mm`;
+    const save = (blob, ext) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}.${ext}`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000); };
+    if (format === 'svg') { save(new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + fig.svg], { type: 'image/svg+xml' }), 'svg'); return Promise.resolve(fig); }
+    const dpi = format === 'png600' ? 600 : 300;
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas'); c.width = Math.round(fig.W / 72 * dpi); c.height = Math.round(fig.H / 72 * dpi);
+        const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(b => { save(b, 'png'); res(Object.assign({ px: [c.width, c.height] }, fig)); }, 'image/png');
+      };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fig.svg);
+    });
   }
 
   // ---------- render + wiring ----------
@@ -213,9 +317,12 @@
     S.inputs = det.inputs; S.outputs = det.outputs;
     S.out = S.out && det.outputs.includes(S.out) ? S.out : det.outputs[0];
     S.labels = opts.customLabels || {}; S.ticks = opts.customTickLabels || {};
-    const sel = document.getElementById('sens-output');
+    const sel = document.getElementById('returns-output');
     if (sel) sel.innerHTML = det.outputs.map(o => `<option value="${o}" ${o === S.out ? 'selected' : ''}>${S.labels[o] || clean(o)}</option>`).join('');
-    const unit = clean(S.out).toUpperCase() === 'EUI' ? 'kBtu/sf/yr' : (S.labels[S.out] || clean(S.out));
+    // unit from the column header, e.g. "out:EUI (kBtu/sf·yr)" -> "kBtu/sf·yr"; never guessed
+    const outLabel = S.labels[S.out] || clean(S.out);
+    const um = outLabel.match(/^(.*?)\s*[\(\[]([^\)\]]*)[\)\]]\s*$/);
+    const unit = um ? um[2].trim() : '', outName = um ? (um[1] || outLabel) : outLabel;
     const eff = pairedEffects(rows, det.inputs, S.out).map(e => {
       // apply the app's axis-label and tick-label overrides so renamed labels flow through
       const tl = S.ticks[e.key] || {};
@@ -225,7 +332,7 @@
     });
     // unhide first: Plotly sizes 'responsive' charts from the container, which is 0 wide while hidden
     document.querySelectorAll('#tornado-section,#returns-section').forEach(x => x.classList.remove('hidden'));
-    drawTornado(eff, unit); drawReturns(eff, unit);
+    drawTornado(eff, unit); drawReturns(eff, unit, outName);
   }
 
 
@@ -345,15 +452,22 @@
     document.getElementById('btn-hl-apply')?.addEventListener('click', () => { const app = window.designExplorer; if (app && app.dm.rowCount) setHighlight(app, document.getElementById('hl-mode').value, parseInt(document.getElementById('hl-n').value || '1', 10)); });
     document.getElementById('btn-hl-clear')?.addEventListener('click', () => { const app = window.designExplorer; if (app) clearHighlight(app); });
     ['hl-mode', 'hl-n'].forEach(id => document.getElementById(id)?.addEventListener('change', () => { const app = window.designExplorer; if (HL.active && app) setHighlight(app, document.getElementById('hl-mode').value, parseInt(document.getElementById('hl-n').value || '1', 10)); }));
-    const sel = document.getElementById('sens-output');
+    const sel = document.getElementById('returns-output');
     if (sel) sel.addEventListener('change', e => { S.out = e.target.value; render(S.rows, { inputs: S.inputs, outputs: S.outputs, customLabels: S.labels, customTickLabels: S.ticks }); });
     const png = (id, name) => Plotly.downloadImage(id, { format: document.getElementById('export-format')?.value || 'png', scale: parseInt(document.getElementById('export-scale')?.value || '4', 10), filename: name });
     document.getElementById('btn-export-tornado')?.addEventListener('click', () => png('tornado-chart', 'tornado_isolated_effects'));
-    document.getElementById('btn-export-returns')?.addEventListener('click', () => png('returns-chart', 'diminishing_returns'));
+    document.getElementById('btn-export-returns')?.addEventListener('click', () => exportReturns());
+    document.getElementById('btn-copy-returns-caption')?.addEventListener('click', () => {
+      const t = document.getElementById('returns-explain')?.textContent || '';
+      const done = () => { const b = document.getElementById('btn-copy-returns-caption'); if (b) { b.textContent = 'Caption copied'; setTimeout(() => b.textContent = 'Copy caption', 1600); } };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done); else { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) { } ta.remove(); done(); }
+    });
+    // redraw the on-screen figure to the new width (debounced)
+    let rsT = 0; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (S.fig) drawReturns(S.fig.eff, S.fig.unit, S.fig.outName); }, 150); });
     // join the app's "Export All Charts" action
     document.getElementById('btn-export-all-charts')?.addEventListener('click', () => {
       if (document.getElementById('tornado-chart')?.data) setTimeout(() => png('tornado-chart', 'tornado_isolated_effects'), 2600);
-      if (document.getElementById('returns-chart')?.data) setTimeout(() => png('returns-chart', 'diminishing_returns'), 3400);
+      if (S.fig) setTimeout(() => exportReturns(), 3400);
     });
     // colours follow js/theme.js: combined.js re-renders on 'bbb-themechange'
   }
@@ -361,5 +475,5 @@
   // listeners fire earlier, so register on window too and retry briefly if the app is still booting.
   function boot(){ let tries=0; const t=()=>{ if(window.designExplorer||tries++>20){ wire(); } else setTimeout(t,50); }; t(); }
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', boot); else boot();
-  window.BBBSensitivity = { render, pairedEffects, highlight: (mode, n) => setHighlight(window.designExplorer, mode, n), clearHighlight: () => clearHighlight(window.designExplorer) };
+  window.BBBSensitivity = { render, pairedEffects, exportReturns, returnsFigure: (o) => S.fig && returnsFigure(S.fig.eff, S.fig.unit, S.fig.outName, o), highlight: (mode, n) => setHighlight(window.designExplorer, mode, n), clearHighlight: () => clearHighlight(window.designExplorer) };
 })();

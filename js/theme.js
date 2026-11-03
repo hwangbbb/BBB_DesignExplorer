@@ -128,7 +128,7 @@
             run, bg, ink,
             sel: get('--pe-sel', '#e8710a'), near: get('--pe-near', '#12a39a'), grey: get('--pe-grey', '#b9b9b9'),
             muted: get('--text-muted', '#8a8a8a'), border: get('--border', '#e4e4e4'),
-            runMid: mix(run, bg, 0.45),
+            runMid: mix(run, bg, 0.3),
             mix
         };
         p.seq = [[0, mix(bg, run, 0.22)], [0.5, run], [1, mix(run, ink, 0.6)]];

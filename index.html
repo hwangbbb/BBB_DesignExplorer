@@ -7,7 +7,7 @@
     <title>BBB Design Explorer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css?v=3">
-    <link rel="stylesheet" href="css/parametric.css?v=4">
+    <link rel="stylesheet" href="css/parametric.css?v=5">
 </head>
 
 <body>
@@ -254,11 +254,29 @@
                 <div class="section-header">
                     <h2 class="editable-title section-title" data-key="returns" title="Double-click to edit">Diminishing Returns Within Each Variable</h2>
                     <div class="section-controls">
-                        <button id="btn-export-returns" class="btn btn-sm btn-outline">Export PNG</button>
+                        <label class="control-label">Output:
+                            <select id="returns-output"></select>
+                        </label>
+                        <label class="control-label" title="Nature column widths">Width:
+                            <select id="returns-width">
+                                <option value="single">Single column · 89 mm</option>
+                                <option value="mid">1.5 column · 120 mm</option>
+                                <option value="double" selected>Double column · 183 mm</option>
+                            </select>
+                        </label>
+                        <label class="control-label">Format:
+                            <select id="returns-format">
+                                <option value="svg">SVG (vector)</option>
+                                <option value="png300">PNG · 300 dpi</option>
+                                <option value="png600">PNG · 600 dpi</option>
+                            </select>
+                        </label>
+                        <button id="btn-export-returns" class="btn btn-sm btn-primary">Export figure</button>
+                        <button id="btn-copy-returns-caption" class="btn btn-sm btn-outline" title="Copy the figure legend">Copy caption</button>
                     </div>
                 </div>
-                <p class="setting-hint" id="returns-explain" style="margin:0 0 6px;max-width:960px;line-height:1.55;"></p>
-                <div id="returns-chart" class="chart-container" style="min-height:340px;position:relative;"></div>
+                <div id="returns-chart" class="chart-container returns-figure"></div>
+                <p class="setting-hint returns-caption" id="returns-explain"></p>
             </section>
 
             <section class="chart-section" id="table-section">
@@ -448,7 +466,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="js/theme.js?v=2"></script>
     <script src="js/app.js?v=14"></script>
-    <script src="js/sensitivity.js?v=5"></script>
+    <script src="js/sensitivity.js?v=6"></script>
     <script src="js/gif.js?v=1"></script>
     <script src="js/parametric.js?v=5"></script>
     <script src="js/combined.js?v=3"></script>

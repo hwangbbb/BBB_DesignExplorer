@@ -6,7 +6,13 @@ Browser tool for exploring Colibri / Grasshopper energy simulation results.
 
 1. **Parametric Explorer**: step sliders and parallel coordinates, the selected run against a baseline, and global and local sensitivity
 2. **Scatter plot**, with Color by, colour scheme and highlight lowest/highest; **Distribution** sits beside it
-3. **Diminishing returns** within each variable
+3. **Diminishing returns** within each variable. This is a publication-style figure following the Nature figure guidelines:
+   - Arial/Helvetica type, open axes with outward ticks, no gridlines.
+   - Panel letters a, b, c…, with one y-scale shared by all panels.
+   - Each panel shows Δ (worst → best span) and n (number of paired comparisons).
+   - Units come from the column header.
+
+   Export it as **SVG (vector)** or **PNG at 300/600 dpi**, at **89 / 120 / 183 mm** (single, 1.5 and double column). Exports always use a white background. **Copy caption** copies a ready-to-paste figure legend.
 4. **Data table** and **Design Variants** gallery
 
 The old Plotly parallel coordinates and the old isolated-effects tornado were retired. The explorer's chart and its Global sensitivity replace them.
