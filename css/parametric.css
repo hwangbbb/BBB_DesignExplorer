@@ -176,3 +176,8 @@ body.theme-architect { --pe-run: #78716c; --pe-near: #0f766e; }
 /* Animate panel */
 .pe-anim { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .pe-anim .control-label select { max-width: 230px; }
+
+/* Diminishing returns: publication-style SVG figure */
+.returns-figure { padding: 18px 20px 4px; }
+.returns-figure svg { display: block; width: 100%; height: auto; }
+.chart-section > .returns-caption { padding: 8px 20px 18px; margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-secondary); max-width: 1100px; }
