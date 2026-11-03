@@ -333,8 +333,25 @@
                         <label class="control-label pe-check" title="Also highlight runs that differ from the selection in exactly one input"><input type="checkbox" id="pe-show-near"> Show one-change runs</label>
                         <span id="pe-filter-count" class="data-count num"></span>
                         <button id="pe-clear" class="btn btn-sm btn-outline">Clear filters</button>
+                        <button id="pe-anim-toggle" class="btn btn-sm btn-outline" title="Sweep through the runs from highest to lowest and export an animated GIF">Animate</button>
                         <button id="pe-export-pc" class="btn btn-sm pe-btn-export" title="Export chart as PNG">${ICON_CAM} Export</button>
                     </div>
+                </div>
+                <div class="pe-anim hidden" id="pe-anim">
+                    <label class="control-label">Order by <select id="pe-anim-out"></select></label>
+                    <label class="control-label">Direction <select id="pe-anim-dir">
+                        <option value="desc">Highest → lowest (top to bottom)</option>
+                        <option value="asc">Lowest → highest (bottom to top)</option></select></label>
+                    <label class="control-label">Frames <select id="pe-anim-frames">
+                        <option value="30">30</option><option value="60" selected>60</option><option value="120">120</option>
+                        <option value="all">Every run (max 400, large file)</option></select></label>
+                    <label class="control-label">Speed <select id="pe-anim-speed">
+                        <option value="160">Slow</option><option value="90" selected>Normal</option><option value="45">Fast</option></select></label>
+                    <label class="control-label">GIF size <select id="pe-anim-scale">
+                        <option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.5">150%</option></select></label>
+                    <button id="pe-anim-play" class="btn btn-sm btn-outline">Preview</button>
+                    <button id="pe-anim-gif" class="btn btn-sm btn-primary">Export GIF</button>
+                    <span id="pe-anim-status" class="data-count num"></span>
                 </div>
                 <div class="pe-chart-scroll" id="pe-scroll">
                     <div class="pe-canvas-wrap" id="pe-wrap">
@@ -438,7 +455,8 @@
         if (STANDALONE) { $('upload-zone').classList.add('hidden'); $('viz-container').classList.remove('hidden'); }
 
         const opts = ds.outputs.map((o, i) => `<option value="${i}">${esc(o.label)}</option>`).join('');
-        $('pe-primary').innerHTML = opts; $('pe-sens-out').innerHTML = opts;
+        $('pe-primary').innerHTML = opts; $('pe-sens-out').innerHTML = opts; $('pe-anim-out').innerHTML = opts;
+        stopAnim();
         // baseline: highest EUI run (first output whose name is EUI, else first EUI-like, else primary)
         S.baseline = defaultBaseline();
         // start at the lowest primary-output run
@@ -725,10 +743,15 @@
         });
     }
 
-    function drawTop() {
+    /* Top layer: brushes, highlights, selected run, axes.
+       opts.run / opts.trail draw an animation frame instead (preview or GIF); opts.ctx draws into another canvas. */
+    function drawTop(opts) {
+        opts = opts || {};
         const ds = S.ds, L = S.layout; if (!ds || !L) return;
-        const ctx = top.getContext('2d');
-        ctx.clearRect(0, 0, L.W, L.H);
+        const ctx = opts.ctx || top.getContext('2d');
+        if (!opts.ctx) ctx.clearRect(0, 0, L.W, L.H);
+        const anim = opts.run !== undefined;
+        if (!anim && S.anim && S.anim.timer) stopAnim();
         const near = css('--pe-near'), sel = css('--pe-sel'), bg = css('--bg-secondary'), accent = css('--accent');
         const A = L.axes.length;
         // brushes
@@ -738,14 +761,22 @@
             ctx.fillStyle = withAlpha(accent, 0.18); ctx.strokeStyle = accent; ctx.lineWidth = 1;
             ctx.fillRect(a.x - 8, ya, 16, Math.max(2, yb - ya)); ctx.strokeRect(a.x - 8 + 0.5, ya + 0.5, 15, Math.max(2, yb - ya) - 1);
         });
-        if (S.drag && S.drag.active) {
+        if (!anim && S.drag && S.drag.active) {
             const a = L.axes[S.drag.a]; const y0 = Math.min(S.drag.y0, S.drag.y1), y1 = Math.max(S.drag.y0, S.drag.y1);
             ctx.fillStyle = withAlpha(accent, 0.25); ctx.fillRect(a.x - 8, y0, 16, y1 - y0);
+        }
+        // animation trail: runs already passed; the most recent tenth drawn stronger so the sweep reads as motion
+        if (anim && opts.trail && opts.trail.length) {
+            const runC = css('--pe-run'), t = opts.trail, cut = Math.floor(t.length * 0.9);
+            ctx.lineWidth = 1.1; ctx.strokeStyle = withAlpha(runC, 0.32);
+            ctx.beginPath(); for (let i = 0; i < cut; i++) tracePath(ctx, t[i]); ctx.stroke();
+            ctx.lineWidth = 1.4; ctx.strokeStyle = withAlpha(runC, 0.75);
+            ctx.beginPath(); for (let i = cut; i < t.length; i++) tracePath(ctx, t[i]); ctx.stroke();
         }
         // neighbours (differ in exactly one input): off by default, switched on with "Show one-change runs"
         ctx.strokeStyle = withAlpha(near, 0.85); ctx.lineWidth = 1.6;
         ctx.beginPath();
-        if (S.showNear) S.ds.inputs.forEach((inp, k) => {
+        if (S.showNear && !anim) S.ds.inputs.forEach((inp, k) => {
             const c = S.sel.slice(); // fresh copy per input: only input k differs
             for (let l = 0; l < inp.levels.length; l++) {
                 if (l === S.sel[k]) continue;
@@ -755,11 +786,11 @@
         });
         ctx.stroke();
         // hover
-        if (S.hover >= 0 && S.hover !== S.selRun) {
+        if (!anim && S.hover >= 0 && S.hover !== S.selRun) {
             ctx.strokeStyle = css('--text-primary'); ctx.lineWidth = 1.5; ctx.beginPath(); tracePath(ctx, S.hover); ctx.stroke();
         }
-        // selected
-        const r = S.selRun;
+        // selected (or the animation's current run)
+        const r = anim ? opts.run : S.selRun;
         if (r >= 0) {
             ctx.strokeStyle = bg; ctx.lineWidth = 7; ctx.lineJoin = 'round';
             ctx.beginPath(); tracePath(ctx, r); ctx.stroke();
@@ -841,6 +872,7 @@
             }
             return;
         }
+        if (S.anim) return;   // no hover redraws while a preview is playing
         if (e.target !== top) { if (S.hover >= 0) { S.hover = -1; $('pe-tooltip').classList.add('hidden'); drawTop(); } return; }
         const h = nearestRun(p.x, p.y, 6);
         if (h !== S.hover) { S.hover = h; schedule(drawTop); }
@@ -1029,6 +1061,119 @@
         }
     }
 
+    // ---------- animation: sweep through the runs, preview in the chart or export a GIF ----------
+    S.anim = null;
+    function animPlan() {
+        const ds = S.ds, o = +$('pe-anim-out').value || 0, dir = $('pe-anim-dir').value, F = $('pe-anim-frames').value;
+        const vals = ds.outputs[o].values, runs = [];
+        for (let r = 0; r < ds.N; r++) if (S.inFilter[r] && isFinite(vals[r])) runs.push(r);
+        runs.sort((a, b) => dir === 'desc' ? vals[b] - vals[a] : vals[a] - vals[b]);
+        const n = runs.length;
+        const nf = Math.max(1, Math.min(n, F === 'all' ? 400 : +F));
+        const positions = nf <= 1 ? [Math.max(0, n - 1)] : Array.from({ length: nf }, (_, i) => Math.round(i * (n - 1) / (nf - 1)));
+        return { o, dir, runs, n, positions, delay: +$('pe-anim-speed').value || 90 };
+    }
+    function animFrameOpts(plan, f) { const p = plan.positions[f]; return { run: plan.runs[p], trail: plan.runs.slice(0, p), pos: p }; }
+    function animCaption(plan, f) {
+        const o = S.ds.outputs[plan.o], fr = animFrameOpts(plan, f), v = o.values[fr.run];
+        const last = f === plan.positions.length - 1;
+        return { left: `${o.label} · ${plan.dir === 'desc' ? 'highest → lowest' : 'lowest → highest'}`,
+            right: `${last ? (plan.dir === 'desc' ? 'Lowest' : 'Highest') + ': ' : ''}Run #${fr.run + 1} · ${fmt(v, o.max)}${unitSuffix(o.unit)} · ${fr.pos + 1} of ${plan.n}`, last };
+    }
+    function stopAnim() {
+        if (!S.anim) return;
+        clearTimeout(S.anim.timer); S.anim = null;
+        $('pe-anim-play').textContent = 'Preview';
+        $('pe-anim-status').textContent = '';
+        drawTop();
+    }
+    function playAnim() {
+        if (S.anim && S.anim.timer) { stopAnim(); return; }
+        const plan = animPlan();
+        if (!plan.n) { $('pe-anim-status').textContent = 'No runs with a value in the current filter'; return; }
+        S.anim = { plan, f: 0, timer: 0 };
+        $('pe-anim-play').textContent = 'Stop';
+        const step = () => {
+            if (!S.anim) return;
+            const f = S.anim.f, cap = animCaption(plan, f);
+            drawTop(animFrameOpts(plan, f));
+            $('pe-anim-status').textContent = cap.right;
+            if (f >= plan.positions.length - 1) { S.anim.timer = setTimeout(stopAnim, 2500); return; }
+            S.anim.f++; S.anim.timer = setTimeout(step, plan.delay);
+        };
+        step();
+    }
+    async function exportGif() {
+        if (!S.ds || !S.layout || !window.BBBGif) return;
+        if (S.anim && S.anim.timer) stopAnim();
+        const plan = animPlan();
+        if (!plan.n) { $('pe-anim-status').textContent = 'No runs with a value in the current filter'; return; }
+        const L = S.layout, scale = +$('pe-anim-scale').value || 1, capH = 46;
+        const W = Math.round(L.W * scale), H = Math.round((L.H + capH) * scale), CH = Math.round(capH * scale);
+        const cpu = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d', { willReadFrequently: true })]; };
+        const [c, ctx] = cpu(W, H);
+        const bg = css('--bg-secondary') || '#ffffff', ink = css('--text-primary'), muted = css('--text-muted'), sel = css('--pe-sel'), runC = css('--pe-run');
+        // Static background (page colour + faint runs) drawn once. Reading the on-screen canvas every frame was the slow part.
+        const [bgC, bgX] = cpu(W, H);
+        bgX.fillStyle = bg; bgX.fillRect(0, 0, W, H);
+        bgX.globalAlpha = S.baseAlpha || 0.2; bgX.drawImage(base, 0, CH, Math.round(L.W * scale), H - CH); bgX.globalAlpha = 1;
+        // Trail layer: each frame only adds the runs passed since the previous frame, in one opaque colour,
+        // and the layer is faded when composited (same trick as the base layer, so overlaps don't stack).
+        const [trC, trX] = cpu(W, H - CH);
+        trX.setTransform(scale, 0, 0, scale, 0, 0); trX.strokeStyle = runC; trX.lineWidth = 1.1;
+        let trailPos = 0;
+        const render = f => {
+            const cap = animCaption(plan, f), fr = animFrameOpts(plan, f);
+            if (fr.pos > trailPos) { trX.beginPath(); for (let i = trailPos; i < fr.pos; i++) tracePath(trX, plan.runs[i]); trX.stroke(); trailPos = fr.pos; }
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+            ctx.drawImage(bgC, 0, 0);
+            ctx.globalAlpha = 0.32; ctx.drawImage(trC, 0, CH); ctx.globalAlpha = 1;
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+            ctx.textBaseline = 'middle';
+            ctx.font = fontStr(14, 600); ctx.fillStyle = ink; ctx.textAlign = 'left'; ctx.fillText(cap.left, 16, capH / 2);
+            ctx.font = fontStr(13, cap.last ? 600 : 400); ctx.fillStyle = cap.last ? sel : muted; ctx.textAlign = 'right'; ctx.fillText(cap.right, L.W - 16, capH / 2);
+            ctx.setTransform(scale, 0, 0, scale, 0, CH);
+            // the most recent runs drawn stronger, so the sweep reads as motion
+            const recent = Math.min(fr.pos, Math.max(1, Math.ceil(plan.n / plan.positions.length) * 4), 150);
+            if (recent) { ctx.lineWidth = 1.4; ctx.strokeStyle = withAlpha(runC, 0.75); ctx.beginPath(); for (let i = fr.pos - recent; i < fr.pos; i++) tracePath(ctx, plan.runs[i]); ctx.stroke(); }
+            drawTop({ ctx, run: fr.run, trail: [] });
+        };
+        const btn = $('pe-anim-gif'), status = $('pe-anim-status');
+        btn.disabled = true;
+        try {
+            const nf = plan.positions.length, pick = [0, Math.floor(nf / 2), nf - 1];
+            const samples = pick.map(f => { render(f); return ctx.getImageData(0, 0, W, H).data.slice(); });
+            trX.setTransform(1, 0, 0, 1, 0, 0); trX.clearRect(0, 0, trC.width, trC.height); trX.setTransform(scale, 0, 0, scale, 0, 0); trailPos = 0;
+            const pinned = [bg, sel, css('--pe-run'), ink, muted, css('--pe-grey'), css('--border-strong'), '#ffffff'];
+            const gw = new window.BBBGif.GifWriter(W, H, window.BBBGif.buildPalette(samples, pinned), { loop: 0 });
+            for (let f = 0; f < nf; f++) {
+                if (S.layout !== L) throw new Error('The chart was resized during export. Please try again.');
+                render(f);
+                gw.addFrame(ctx.getImageData(0, 0, W, H).data, f === 0 ? 800 : f === nf - 1 ? 3000 : plan.delay);
+                if (f % 2 === 0) { status.textContent = `Encoding frame ${f + 1} of ${nf}…`; await new Promise(r => setTimeout(r, 0)); }
+            }
+            const bytes = gw.finish();
+            const name = S.ds.outputs[plan.o].name.replace(/[^\w.-]+/g, '_');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([bytes], { type: 'image/gif' }));
+            a.download = `parallel-coordinates-${name}-${plan.dir === 'desc' ? 'high-to-low' : 'low-to-high'}.gif`;
+            a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+            status.textContent = `GIF saved: ${nf} frames, ${W}×${H} px, ${(bytes.length / 1048576).toFixed(1)} MB`;
+            S.lastGif = { bytes, W, H, frames: nf };
+        } catch (e) {
+            status.textContent = 'GIF export failed: ' + e.message;
+        } finally { btn.disabled = false; drawTop(); }
+    }
+    $('pe-anim-toggle').onclick = () => {
+        const open = $('pe-anim').classList.toggle('hidden') === false;
+        $('pe-anim-toggle').classList.toggle('active', open);
+        if (open && S.ds) $('pe-anim-out').value = String(S.primary);
+        if (!open) stopAnim();
+    };
+    $('pe-anim-play').onclick = () => { if (S.ds) playAnim(); };
+    $('pe-anim-gif').onclick = () => { if (S.ds) exportGif(); };
+    ['pe-anim-out', 'pe-anim-dir', 'pe-anim-frames', 'pe-anim-speed'].forEach(id => $(id).addEventListener('change', () => { if (S.anim) stopAnim(); }));
+
     // ---------- export ----------
     function download(canvas, name) {
         const a = document.createElement('a'); a.download = name; a.href = canvas.toDataURL('image/png'); a.click();
@@ -1068,7 +1213,8 @@
         addImages,
         clearFilters() { if (!S.ds) return; S.brushes = {}; computeFilter(); drawBase(); drawTop(); },
         refresh() { if (S.ds) { layoutChart(); renderSensitivity(); } },
-        exportChart, exportSens,
+        exportChart, exportSens, exportGif,
+        get lastGif() { return S.lastGif || null; },
         get loaded() { return !!S.ds; }
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -54,6 +54,18 @@ Send `dist/BBB_Parametric_Explorer.html`. The CSS and JS are inlined in it, so t
   - Click or drag along the row, or use the arrow keys.
   - The **orange** line is the run that matches every slider. All other runs are drawn faint in one color.
   - **Show one-change runs** adds teal lines for runs that differ from the selection in exactly one input.
+- **Animate (GIF for reports).** **Animate** on the parallel-coordinates header opens the animation settings:
+  - **Order by:** any output.
+  - **Direction:** highest → lowest (top to bottom) or the reverse.
+  - **Frames:** 30, 60, 120, or every run (up to 400).
+  - **Speed** and **GIF size**.
+
+  **Preview** plays the animation in the chart. **Export GIF** saves a looping GIF:
+  - The current run is orange and the runs already passed stay as a fading trail.
+  - A caption gives the run number, value and position.
+  - The last frame holds on the best (or worst) run.
+
+  The animation only includes runs inside the current axis filters, so you can brush first to animate a subset. 60 frames at 100% gives a GIF of about 1 MB and takes a few seconds. The encoder (`js/gif.js`) is built in and works offline.
 - **Selected Run.** Shows the primary output in large type and a table of every output against a baseline.
   - The baseline defaults to the highest-EUI run. **Set as baseline** pins the current run instead.
   - **Copy run values** copies the run as tab-separated text you can paste into Excel.
@@ -81,6 +93,7 @@ Send `dist/BBB_Parametric_Explorer.html`. The CSS and JS are inlined in it, so t
 
 ```
 node tests/parametric.test.js
+node tests/gif.test.js && python tests/gif_check.py   # GIF encoder, decoded with Pillow
 ```
 
 The tests check:
